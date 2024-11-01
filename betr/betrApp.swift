@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct betrApp: App {
+    @StateObject private var taskViewModel = TaskListViewModel()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            CalendarView(taskViewModel: taskViewModel)
+                .environmentObject(taskViewModel)
         }
     }
 }

@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F34463B72CD578B300F0991C /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F34463B62CD578B300F0991C /* ConfettiSwiftUI */; };
+		F34463B92CD57EB400F0991C /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F34463B82CD57EB400F0991C /* ConfettiSwiftUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F34463642CD4ECEA00F0991C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F34463B92CD57EB400F0991C /* ConfettiSwiftUI in Frameworks */,
+				F34463B72CD578B300F0991C /* ConfettiSwiftUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +119,8 @@
 			);
 			name = betr;
 			packageProductDependencies = (
+				F34463B62CD578B300F0991C /* ConfettiSwiftUI */,
+				F34463B82CD57EB400F0991C /* ConfettiSwiftUI */,
 			);
 			productName = betr;
 			productReference = F34463532CD4ECE900F0991C /* betr.app */;
@@ -195,6 +204,9 @@
 			);
 			mainGroup = F344634A2CD4ECE900F0991C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F34463B52CD578B300F0991C /* XCLocalSwiftPackageReference "../../Downloads/ConfettiSwiftUI-master" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F34463542CD4ECE900F0991C /* Products */;
 			projectDirPath = "";
@@ -396,6 +408,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"betr/Preview Content\"";
+				DEVELOPMENT_TEAM = LLKKT48X2M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -424,6 +437,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"betr/Preview Content\"";
+				DEVELOPMENT_TEAM = LLKKT48X2M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -552,6 +566,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		F34463B52CD578B300F0991C /* XCLocalSwiftPackageReference "../../Downloads/ConfettiSwiftUI-master" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../Downloads/ConfettiSwiftUI-master";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F34463B62CD578B300F0991C /* ConfettiSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConfettiSwiftUI;
+		};
+		F34463B82CD57EB400F0991C /* ConfettiSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConfettiSwiftUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F344634B2CD4ECE900F0991C /* Project object */;
 }
