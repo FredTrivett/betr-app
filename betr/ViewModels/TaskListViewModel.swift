@@ -36,15 +36,17 @@ class TaskListViewModel: ObservableObject {
         }
     }
     
-    func deleteTask(_ task: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            var updatedTask = tasks[index]
-            if updatedTask.isRecurring {
-                updatedTask.deletedDate = Date()
+    func deleteTask(_ task: Task, for date: Date? = nil) {
+        if task.isRecurring && date != nil {
+            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                var updatedTask = tasks[index]
+                let normalizedDate = Calendar.current.startOfDay(for: date!)
+                updatedTask.excludedDates.insert(normalizedDate)
                 tasks[index] = updatedTask
-            } else {
-                tasks.remove(at: index)
+                saveTasks()
             }
+        } else {
+            tasks.removeAll { $0.id == task.id }
             saveTasks()
         }
     }

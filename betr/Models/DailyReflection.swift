@@ -40,7 +40,7 @@ enum ReflectionRating: String, Codable {
     var color: Color {
         switch self {
         case .better: return .green
-        case .same: return .blue
+        case .same: return .orange
         case .worse: return .red
         }
     }

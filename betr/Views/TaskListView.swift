@@ -79,7 +79,7 @@ struct TaskListView: View {
                                     )
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
-                                            viewModel.deleteTask(task)
+                                            viewModel.deleteTask(task, for: task.isRecurring ? selectedDate : nil)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -97,7 +97,7 @@ struct TaskListView: View {
                         }
                     }
                     
-                    if isToday {
+                    if DayBoundary.canReflectOn(selectedDate) {
                         Button {
                             showingComparison = true
                         } label: {

@@ -11,6 +11,7 @@ struct Task: Identifiable, Hashable, Codable, Sendable {
     var deletedDate: Date?
     var recurringDays: Set<Weekday>?
     var completionDates: [Date] = []
+    var excludedDates: Set<Date>
     
     init(id: UUID = UUID(), 
          title: String, 
@@ -32,6 +33,7 @@ struct Task: Identifiable, Hashable, Codable, Sendable {
         self.completionDates = completionDates
         self.deletedDate = deletedDate
         self.recurringDays = recurringDays
+        self.excludedDates = Set()
     }
     
     // Check if task is completed for a specific date
@@ -49,6 +51,12 @@ struct Task: Identifiable, Hashable, Codable, Sendable {
     // Check if task is available for a specific date
     func isAvailableForDate(_ date: Date) -> Bool {
         let calendar = Calendar.current
+        
+        // First check if the date is excluded
+        let normalizedDate = calendar.startOfDay(for: date)
+        if excludedDates.contains(where: { calendar.isDate($0, inSameDayAs: normalizedDate) }) {
+            return false
+        }
         
         // Check if the date is after deletion
         if let deletedDate = deletedDate,
@@ -148,6 +156,18 @@ enum Weekday: Int, Codable, Hashable, CaseIterable {
         case .thursday: return "Thu"
         case .friday: return "Fri"
         case .saturday: return "Sat"
+        }
+    }
+    
+    var singleLetter: String {
+        switch self {
+        case .monday: return "M"
+        case .tuesday: return "T"
+        case .wednesday: return "W"
+        case .thursday: return "T"
+        case .friday: return "F"
+        case .saturday: return "S"
+        case .sunday: return "S"
         }
     }
 }

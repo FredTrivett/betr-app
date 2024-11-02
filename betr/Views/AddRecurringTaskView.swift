@@ -8,77 +8,60 @@ struct AddRecurringTaskView: View {
     @State private var title: String = ""
     @State private var description: String = ""
     @State private var selectedDays: Set<Weekday> = []
-    @State private var isCustomSchedule = false
     
-    private let weekdays: [Weekday] = [.monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday]
+    // Track original values to detect changes
+    private let originalTitle: String
+    private let originalDescription: String
+    private let originalSelectedDays: Set<Weekday>
     
     init(viewModel: TaskListViewModel, taskToEdit: Task? = nil) {
         self.viewModel = viewModel
         self.taskToEdit = taskToEdit
         
-        if let task = taskToEdit {
-            _title = State(initialValue: task.title)
-            _description = State(initialValue: task.description)
-            _isCustomSchedule = State(initialValue: task.recurringDays != nil)
-            _selectedDays = State(initialValue: task.recurringDays ?? [])
-        }
+        let taskTitle = taskToEdit?.title ?? ""
+        let taskDescription = taskToEdit?.description ?? ""
+        let taskDays = taskToEdit?.recurringDays ?? []
+        
+        _title = State(initialValue: taskTitle)
+        _description = State(initialValue: taskDescription)
+        _selectedDays = State(initialValue: taskDays)
+        
+        originalTitle = taskTitle
+        originalDescription = taskDescription
+        originalSelectedDays = taskDays
+    }
+    
+    private var hasChanges: Bool {
+        title != originalTitle ||
+        description != originalDescription ||
+        selectedDays != originalSelectedDays
     }
     
     var body: some View {
         NavigationStack {
-            VStack {
-                Form {
-                    Section {
-                        TextField("Task title", text: $title)
-                        TextField("Description", text: $description, axis: .vertical)
-                            .lineLimit(3...6)
-                    }
-                    
-                    Section {
-                        Toggle("Custom Schedule", isOn: $isCustomSchedule)
-                        
-                        if isCustomSchedule {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Repeat on:")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                
-                                HStack(spacing: 8) {
-                                    ForEach(weekdays, id: \.self) { weekday in
-                                        WeekdayBubble(
-                                            letter: String(weekday.shortName.prefix(1)),
-                                            isSelected: selectedDays.contains(weekday),
-                                            action: {
-                                                if selectedDays.contains(weekday) {
-                                                    selectedDays.remove(weekday)
-                                                } else {
-                                                    selectedDays.insert(weekday)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
+            TaskFormContent(
+                title: $title,
+                description: $description,
+                selectedDays: $selectedDays
+            )
+            .safeAreaInset(edge: .bottom) {
+                BottomButton(
+                    title: title,
+                    selectedDays: selectedDays,
+                    hasChanges: hasChanges,
+                    isEditing: taskToEdit != nil,
+                    action: {
+                        if taskToEdit != nil {
+                            if hasChanges {
+                                updateTask()
+                            } else {
+                                dismiss()
                             }
-                            .padding(.vertical, 8)
                         } else {
-                            Text("Task will repeat daily")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            addTask()
                         }
                     }
-                }
-                
-                Button(action: addOrUpdateTask) {
-                    Text(taskToEdit == nil ? "Add Recurring Task" : "Update Task")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.tint)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || 
-                         (isCustomSchedule && selectedDays.isEmpty))
-                .padding()
+                )
             }
             .navigationTitle(taskToEdit == nil ? "New Recurring Task" : "Edit Task")
             .navigationBarTitleDisplayMode(.inline)
@@ -92,23 +75,118 @@ struct AddRecurringTaskView: View {
         }
     }
     
-    private func addOrUpdateTask() {
+    private func addTask() {
         let task = Task(
-            id: taskToEdit?.id ?? UUID(),
-            title: title.trimmingCharacters(in: .whitespaces),
-            description: description.trimmingCharacters(in: .whitespaces),
+            title: title,
+            description: description,
             isRecurring: true,
-            creationDate: taskToEdit?.creationDate ?? Date(),
-            completionDates: taskToEdit?.completionDates ?? [],
-            recurringDays: isCustomSchedule ? selectedDays : nil
+            recurringDays: selectedDays
+        )
+        viewModel.addTask(task)
+        dismiss()
+    }
+    
+    private func updateTask() {
+        guard let existingTask = taskToEdit else { return }
+        
+        var updatedTask = Task(
+            id: existingTask.id,
+            title: title,
+            description: description,
+            isRecurring: true,
+            lastCompletedDate: existingTask.lastCompletedDate,
+            creationDate: existingTask.creationDate,
+            completionDates: existingTask.completionDates,
+            deletedDate: existingTask.deletedDate,
+            recurringDays: selectedDays
         )
         
-        if taskToEdit != nil {
-            viewModel.updateTask(task)
-        } else {
-            viewModel.addTask(task)
-        }
+        updatedTask.excludedDates = existingTask.excludedDates
+        viewModel.updateTask(updatedTask)
         dismiss()
+    }
+}
+
+// MARK: - Supporting Views
+private struct TaskFormContent: View {
+    @Binding var title: String
+    @Binding var description: String
+    @Binding var selectedDays: Set<Weekday>
+    
+    var body: some View {
+        Form {
+            Section {
+                TextField("Task title", text: $title)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(3...6)
+            }
+            
+            Section("Repeat on") {
+                WeekdaySelector(selectedDays: $selectedDays)
+                    .padding(.vertical, 8)
+            }
+        }
+    }
+}
+
+private struct WeekdaySelector: View {
+    @Binding var selectedDays: Set<Weekday>
+    
+    private let weekdays: [Weekday] = [
+        .monday, .tuesday, .wednesday, 
+        .thursday, .friday, .saturday, .sunday
+    ]
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(weekdays, id: \.self) { day in
+                WeekdayBubble(
+                    letter: day.singleLetter,
+                    isSelected: selectedDays.contains(day)
+                ) {
+                    if selectedDays.contains(day) {
+                        selectedDays.remove(day)
+                    } else {
+                        selectedDays.insert(day)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct BottomButton: View {
+    let title: String
+    let selectedDays: Set<Weekday>
+    let hasChanges: Bool
+    let isEditing: Bool
+    let action: () -> Void
+    
+    private var isDisabled: Bool {
+        title.isEmpty || selectedDays.isEmpty
+    }
+    
+    private var buttonText: String {
+        if isEditing {
+            return hasChanges ? "Update Task" : "Close"
+        }
+        return "Add Task"
+    }
+    
+    var body: some View {
+        VStack {
+            Button(action: action) {
+                Text(buttonText)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(isDisabled ? .gray.opacity(0.3) : .blue)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .disabled(isDisabled)
+            .padding()
+            .background(.ultraThinMaterial)
+        }
     }
 }
 

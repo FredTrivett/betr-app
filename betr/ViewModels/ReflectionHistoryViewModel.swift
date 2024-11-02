@@ -1,13 +1,20 @@
 import Foundation
 
+@MainActor
 class ReflectionHistoryViewModel: ObservableObject {
+    @Published private(set) var reflections: [DailyReflection] = []
+    @Published private(set) var reflectionsByDate: [Date: [DailyReflection]] = [:]
     private let storage: ReflectionHistoryStorageProtocol
-    @Published var reflections: [DailyReflection] = []
-    @Published var reflectionsByDate: [Date: [DailyReflection]] = [:]
     
     init(storage: ReflectionHistoryStorageProtocol = ReflectionHistoryStorage()) {
         self.storage = storage
         loadReflections()
+    }
+    
+    func getReflection(for date: Date) -> DailyReflection? {
+        reflections.first { reflection in
+            Calendar.current.isDate(reflection.date, inSameDayAs: date)
+        }
     }
     
     private func loadReflections() {
@@ -21,8 +28,9 @@ class ReflectionHistoryViewModel: ObservableObject {
     }
     
     private func groupReflectionsByDate() {
+        let calendar = Calendar.current
         reflectionsByDate = Dictionary(grouping: reflections) { reflection in
-            Calendar.current.startOfDay(for: reflection.date)
+            calendar.startOfDay(for: reflection.date)
         }
     }
     
