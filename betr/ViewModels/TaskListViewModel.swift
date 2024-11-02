@@ -94,6 +94,18 @@ class TaskListViewModel: ObservableObject {
             saveTasks()
         }
     }
+    
+    func completedTasksCount(for date: Date) -> Int {
+        tasks.filter { task in
+            task.isAvailableForDate(date) && task.isCompletedForDate(date)
+        }.count
+    }
+    
+    func availableTasksCount(for date: Date) -> Int {
+        tasks.filter { task in
+            task.isAvailableForDate(date)
+        }.count
+    }
 }
 
 // Add this struct to represent progress comparison

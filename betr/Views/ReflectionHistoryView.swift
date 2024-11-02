@@ -2,73 +2,65 @@ import SwiftUI
 
 struct ReflectionHistoryView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = ReflectionHistoryViewModel()
-    @ObservedObject var taskViewModel: TaskListViewModel
-    @State private var selectedDate: Date?
+    @StateObject private var viewModel: ReflectionHistoryViewModel
+    @State private var selectedTimeFrame: TimeFrame = .week
+    @State private var selectedDate: IdentifiableDate?
+    let taskViewModel: TaskListViewModel
+    
+    init(taskViewModel: TaskListViewModel) {
+        self.taskViewModel = taskViewModel
+        self._viewModel = StateObject(wrappedValue: ReflectionHistoryViewModel())
+    }
     
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Stats Section
-                    VStack(spacing: 16) {
-                        // Weekly Stats
-                        StatsSummary(
-                            title: "This Week",
-                            stats: viewModel.weeklyStats
-                        )
-                        
-                        // Monthly Stats
-                        StatsSummary(
-                            title: "This Month",
-                            stats: viewModel.monthlyStats
-                        )
+                    // Time frame selector
+                    Picker("Time Frame", selection: $selectedTimeFrame) {
+                        ForEach(TimeFrame.allCases, id: \.self) { timeFrame in
+                            Text(timeFrame.rawValue)
+                                .tag(timeFrame)
+                        }
                     }
-                    .padding()
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    
+                    // Progress Chart
+                    ProgressChart(
+                        data: viewModel.getChartData(for: selectedTimeFrame),
+                        timeFrame: selectedTimeFrame
+                    )
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     
-                    // History Section
-                    VStack(alignment: .leading, spacing: 16) {
+                    // Today's Summary
+                    TodaySummary(
+                        reflection: viewModel.todayReflection,
+                        completedTasks: taskViewModel.completedTasksCount(for: Date()),
+                        totalTasks: taskViewModel.availableTasksCount(for: Date()),
+                        onTap: { selectedDate = IdentifiableDate(date: Date()) }
+                    )
+                    
+                    // History
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("History")
                             .font(.headline)
+                            .padding(.horizontal)
                         
-                        ForEach(viewModel.reflectionsByDate.keys.sorted(by: >), id: \.self) { date in
-                            if let reflections = viewModel.reflectionsByDate[date] {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(date.formatted(date: .abbreviated, time: .omitted))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    
-                                    ForEach(reflections) { reflection in
-                                        Button {
-                                            selectedDate = reflection.date
-                                        } label: {
-                                            HStack {
-                                                Image(systemName: reflection.rating.iconName)
-                                                    .foregroundStyle(reflection.rating.color)
-                                                Text("\(reflection.tasksCompleted)/\(reflection.totalTasks) tasks")
-                                                
-                                                Spacer()
-                                                
-                                                Text(reflection.rating.rawValue.capitalized)
-                                                    .foregroundStyle(reflection.rating.color)
-                                                    .font(.callout.bold())
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .padding()
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        ReflectionHistoryList(
+                            reflections: viewModel.displayedReflections,
+                            onLoadMore: viewModel.loadMoreReflections,
+                            onTapReflection: { date in
+                                selectedDate = IdentifiableDate(date: date)
                             }
-                        }
+                        )
                     }
                 }
                 .padding()
             }
             .navigationTitle("Progress History")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") {
@@ -76,59 +68,50 @@ struct ReflectionHistoryView: View {
                     }
                 }
             }
-            .sheet(item: $selectedDate) { date in
-                TaskListView(viewModel: taskViewModel, selectedDate: date)
+            .sheet(item: $selectedDate) { identifiableDate in
+                TaskListView(viewModel: taskViewModel, selectedDate: identifiableDate.date)
             }
         }
     }
 }
 
-extension Date: Identifiable {
-    public var id: Date { self }
-}
-
-struct StatsSummary: View {
-    let title: String
-    let stats: (better: Int, same: Int, worse: Int)
+struct ReflectionRow: View {
+    let reflection: DailyReflection
+    let onTap: (Date) -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            
-            HStack(spacing: 16) {
-                StatItem(count: stats.better, label: "Better", color: .green)
-                StatItem(count: stats.same, label: "Same", color: .blue)
-                StatItem(count: stats.worse, label: "Worse", color: .red)
+        Button {
+            onTap(reflection.date)
+        } label: {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(reflection.date.formatted(date: .abbreviated, time: .omitted))
+                        .font(.subheadline)
+                    Text("\(reflection.tasksCompleted)/\(reflection.totalTasks) tasks completed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                Circle()
+                    .fill(reflection.rating.color)
+                    .frame(width: 12, height: 12)
             }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+        .buttonStyle(.plain)
     }
 }
 
-struct StatItem: View {
-    let count: Int
-    let label: String
-    let color: Color
-    
-    var body: some View {
-        VStack {
-            Text("\(count)")
-                .font(.title2.bold())
-                .foregroundStyle(color)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
+struct IdentifiableDate: Identifiable {
+    let id = UUID()
+    let date: Date
 }
 
-extension ReflectionRating {
-    var iconName: String {
-        switch self {
-        case .better: return "arrow.up.circle.fill"
-        case .same: return "equal.circle.fill"
-        case .worse: return "arrow.down.circle.fill"
-        }
-    }
+#Preview {
+    ReflectionHistoryView(taskViewModel: TaskListViewModel())
 } 
