@@ -116,6 +116,15 @@ class TaskListViewModel: ObservableObject {
             saveTasks()
         }
     }
+    
+    func getReflectionForDate(_ date: Date) -> DailyReflection? {
+        // This should connect to your reflection storage system
+        let storage = ReflectionHistoryStorage()
+        let reflections = try? storage.loadReflections()
+        return reflections?.first { reflection in
+            Calendar.current.isDate(reflection.date, inSameDayAs: date)
+        }
+    }
 }
 
 // Add this struct to represent progress comparison
