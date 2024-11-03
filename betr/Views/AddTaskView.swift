@@ -2,85 +2,82 @@ import SwiftUI
 
 struct AddTaskView: View {
     @Environment(\.dismiss) private var dismiss
-    let viewModel: TaskListViewModel
+    @ObservedObject var viewModel: TaskListViewModel
     let selectedDate: Date
-    var taskToEdit: Task? = nil
     
-    @State private var title: String = ""
-    @State private var description: String = ""
-    
-    init(viewModel: TaskListViewModel, selectedDate: Date, taskToEdit: Task? = nil) {
-        self.viewModel = viewModel
-        self.selectedDate = selectedDate
-        self.taskToEdit = taskToEdit
-        
-        if let task = taskToEdit {
-            _title = State(initialValue: task.title)
-            _description = State(initialValue: task.description)
-        }
-    }
+    @State private var title = ""
+    @State private var description = ""
+    @State private var isRecurring = false
+    @State private var selectedDays: Set<Weekday> = Set(Weekday.allCases)
     
     var body: some View {
         NavigationStack {
-            VStack {
-                Form {
-                    Section {
-                        TextField("Task title", text: $title)
-                        TextField("Description", text: $description, axis: .vertical)
-                            .lineLimit(3...6)
-                    }
+            Form {
+                Section {
+                    TextField("Task Title", text: $title)
+                    TextField("Description", text: $description, axis: .vertical)
+                        .lineLimit(4...6)
                 }
                 
-                Button(action: taskToEdit != nil ? updateTask : addTask) {
-                    Text(taskToEdit != nil ? "Update Task" : "Add Task")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.tint)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                Section {
+                    Toggle("Make Recurring", isOn: $isRecurring)
+                    
+                    if isRecurring {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Repeat on")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            
+                            HStack(spacing: 12) {
+                                ForEach(Weekday.allCases, id: \.self) { day in
+                                    DayToggle(
+                                        day: day,
+                                        isSelected: selectedDays.contains(day),
+                                        onTap: {
+                                            if selectedDays.contains(day) {
+                                                selectedDays.remove(day)
+                                            } else {
+                                                selectedDays.insert(day)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
                 }
-                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
-                .padding()
             }
-            .navigationTitle(taskToEdit != nil ? "Edit Task" : "New Task")
+            .navigationTitle("Add Task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Add") {
+                        let task = Task(
+                            title: title,
+                            description: description,
+                            isRecurring: isRecurring,
+                            creationDate: selectedDate
+                        )
+                        viewModel.addTask(task)
+                        dismiss()
+                    }
+                    .disabled(title.isEmpty || (isRecurring && selectedDays.isEmpty))
+                }
             }
         }
-    }
-    
-    private func addTask() {
-        let task = Task(
-            title: title.trimmingCharacters(in: .whitespaces),
-            description: description.trimmingCharacters(in: .whitespaces),
-            isRecurring: false,
-            creationDate: selectedDate
-        )
-        viewModel.addTask(task)
-        dismiss()
-    }
-    
-    private func updateTask() {
-        guard let existingTask = taskToEdit else { return }
-        let updatedTask = Task(
-            id: existingTask.id,
-            title: title.trimmingCharacters(in: .whitespaces),
-            description: description.trimmingCharacters(in: .whitespaces),
-            isRecurring: false,
-            lastCompletedDate: existingTask.lastCompletedDate,
-            creationDate: existingTask.creationDate,
-            completionDates: existingTask.completionDates
-        )
-        viewModel.updateTask(updatedTask)
-        dismiss()
     }
 }
 
 #Preview {
-    AddTaskView(viewModel: TaskListViewModel(), selectedDate: Date())
+    AddTaskView(
+        viewModel: TaskListViewModel(),
+        selectedDate: Date()
+    )
 } 

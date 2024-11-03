@@ -88,9 +88,9 @@ class TaskListViewModel: ObservableObject {
         )
     }
     
-    func updateTask(_ updatedTask: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
-            tasks[index] = updatedTask
+    func updateTask(_ task: Task) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            tasks[index] = task
             saveTasks()
         }
     }
@@ -105,6 +105,16 @@ class TaskListViewModel: ObservableObject {
         tasks.filter { task in
             task.isAvailableForDate(date)
         }.count
+    }
+    
+    func excludeRecurringTask(_ task: Task, for date: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks[index]
+            let normalizedDate = Calendar.current.startOfDay(for: date)
+            updatedTask.excludedDates.insert(normalizedDate)
+            tasks[index] = updatedTask
+            saveTasks()
+        }
     }
 }
 

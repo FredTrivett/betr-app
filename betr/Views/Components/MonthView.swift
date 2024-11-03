@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MonthView: View {
     let date: Date
-    @Binding var selectedDate: Date
+    @Binding var selectedDate: Date?
     let taskViewModel: TaskListViewModel
     @Binding var showingTaskList: Bool
     
@@ -31,15 +31,15 @@ struct MonthView: View {
                         
                         DayCell(
                             date: date,
-                            isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                            isSelected: selectedDate.map { calendar.isDate(date, inSameDayAs: $0) } ?? false,
                             isToday: calendar.isDateInToday(date),
                             completionStatus: getCompletionStatus(for: date),
                             isFutureDate: isFutureDate
                         )
                         .id(calendar.isDateInToday(date) ? 0 : nil)
                         .onTapGesture {
+                            selectedDate = nil  // Reset first to ensure trigger
                             selectedDate = date
-                            showingTaskList = true
                         }
                     } else {
                         Color.clear

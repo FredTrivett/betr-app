@@ -1,119 +1,63 @@
 import Foundation
 
-struct Task: Identifiable, Hashable, Codable, Sendable {
+struct Task: Identifiable, Hashable, Codable {
     let id: UUID
     var title: String
     var description: String
-    var isCompleted: Bool
     var isRecurring: Bool
-    var lastCompletedDate: Date?
-    var creationDate: Date
-    var deletedDate: Date?
-    var recurringDays: Set<Weekday>?
-    var completionDates: [Date] = []
+    var completedDates: Set<Date>
     var excludedDates: Set<Date>
+    var creationDate: Date
     
-    init(id: UUID = UUID(), 
-         title: String, 
-         description: String = "",
-         isCompleted: Bool = false, 
-         isRecurring: Bool = false,
-         lastCompletedDate: Date? = nil,
-         creationDate: Date = Date(),
-         completionDates: [Date] = [],
-         deletedDate: Date? = nil,
-         recurringDays: Set<Weekday>? = nil) {
+    init(
+        id: UUID = UUID(),
+        title: String,
+        description: String = "",
+        isRecurring: Bool = false,
+        completedDates: Set<Date> = [],
+        excludedDates: Set<Date> = [],
+        creationDate: Date = Date()
+    ) {
         self.id = id
         self.title = title
         self.description = description
-        self.isCompleted = isCompleted
         self.isRecurring = isRecurring
-        self.lastCompletedDate = lastCompletedDate
+        self.completedDates = completedDates
+        self.excludedDates = excludedDates
         self.creationDate = creationDate
-        self.completionDates = completionDates
-        self.deletedDate = deletedDate
-        self.recurringDays = recurringDays
-        self.excludedDates = Set()
     }
     
-    // Check if task is completed for a specific date
     func isCompletedForDate(_ date: Date) -> Bool {
-        if isRecurring {
-            return completionDates.contains { Calendar.current.isDate($0, inSameDayAs: date) }
-        } else {
-            guard let lastCompleted = lastCompletedDate else {
-                return false
-            }
-            return Calendar.current.isDate(lastCompleted, inSameDayAs: date) && isCompleted
-        }
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        return completedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
     }
     
-    // Check if task is available for a specific date
     func isAvailableForDate(_ date: Date) -> Bool {
-        let calendar = Calendar.current
-        
-        // First check if the date is excluded
-        let normalizedDate = calendar.startOfDay(for: date)
-        if excludedDates.contains(where: { calendar.isDate($0, inSameDayAs: normalizedDate) }) {
-            return false
-        }
-        
-        // Check if the date is after deletion
-        if let deletedDate = deletedDate,
-           calendar.compare(date, to: deletedDate, toGranularity: .day) != .orderedAscending {
-            return false
-        }
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        let isExcluded = excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         
         if isRecurring {
-            // Check if the date is after creation date
-            guard calendar.compare(date, to: creationDate, toGranularity: .day) != .orderedAscending else {
-                return false
-            }
-            
-            // If recurring days are specified, check if the date matches
-            if let recurringDays = recurringDays {
-                let weekday = Weekday(rawValue: calendar.component(.weekday, from: date))!
-                return recurringDays.contains(weekday)
-            }
-            
-            // If no specific days are set, task recurs daily
-            return true
+            return !isExcluded
+        } else {
+            return Calendar.current.isDate(creationDate, inSameDayAs: normalizedDate) && !isExcluded
         }
-        
-        // For non-recurring tasks, they should only appear on their creation date
-        return calendar.isDate(creationDate, inSameDayAs: date)
     }
     
-    // Update completion status for a specific date
-    mutating func updateCompletion(_ isCompleted: Bool, for date: Date) {
-        if isRecurring {
-            if isCompleted {
-                // Add the date to completionDates if not already present
-                if !self.isCompletedForDate(date) {
-                    completionDates.append(date)
-                }
-            } else {
-                // Remove the date from completionDates
-                completionDates.removeAll { Calendar.current.isDate($0, inSameDayAs: date) }
-            }
+    mutating func updateCompletion(_ completed: Bool, for date: Date) {
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        if completed {
+            completedDates.insert(normalizedDate)
         } else {
-            self.isCompleted = isCompleted
-            self.lastCompletedDate = isCompleted ? date : nil
+            completedDates = completedDates.filter { !Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
     }
-}
-
-// Extension to add task management functionality
-extension Task {
-    var shouldResetCompletion: Bool {
-        // Recurring tasks don't need resetting as they use completionDates
-        if isRecurring {
-            return false
-        }
-        guard let lastCompleted = lastCompletedDate else {
-            return false
-        }
-        return !Calendar.current.isDate(lastCompleted, inSameDayAs: Date())
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Task, rhs: Task) -> Bool {
+        lhs.id == rhs.id
     }
     
     // Get completion count for a specific date

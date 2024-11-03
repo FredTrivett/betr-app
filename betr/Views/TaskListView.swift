@@ -1,16 +1,25 @@
 import SwiftUI
-import ConfettiSwiftUI
 
 struct TaskListView: View {
-    @ObservedObject var viewModel: TaskListViewModel
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: TaskListViewModel
     let selectedDate: Date
-    @State private var isAddingTask = false
-    @State private var showingComparison = false
-    @State private var taskToEdit: Task? = nil
-    @State private var confettiCounter = 0
-    @State private var isConfettiActive = false
-    @State private var confettiOpacity = 0.0
+    @State private var showingAddTask = false
+    @State private var showManageRecurring = false
+    @State private var showingReflection = false
+    @State private var showingEditTask = false
+    @State private var taskToEdit: Task?
+    @State private var isEditingRecurring = false
+    
+    private var sortedTasks: (recurring: [Task], nonRecurring: [Task]) {
+        let available = viewModel.tasks.filter { task in
+            task.isAvailableForDate(selectedDate)
+        }
+        return (
+            recurring: available.filter { $0.isRecurring },
+            nonRecurring: available.filter { !$0.isRecurring }
+        )
+    }
     
     private var isToday: Bool {
         Calendar.current.isDateInToday(selectedDate)
@@ -20,177 +29,192 @@ struct TaskListView: View {
         Calendar.current.compare(selectedDate, to: Date(), toGranularity: .day) == .orderedDescending
     }
     
-    var availableTasks: [Task] {
-        viewModel.tasks.filter { task in
-            task.isAvailableForDate(selectedDate)
-        }
-    }
-    
-    var sortedTasks: [Task] {
-        availableTasks.sorted { task1, task2 in
-            if task1.isRecurring == task2.isRecurring {
-                return task1.title < task2.title // Alphabetical within groups
-            }
-            return task1.isRecurring && !task2.isRecurring // Recurring tasks first
-        }
-    }
-    
     var body: some View {
-        NavigationStack {
-            ZStack {
-                ZStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Date and Title Section
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(selectedDate.formatted(date: .abbreviated, time: .omitted))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            
-                            Text(isToday ? "Today's Tasks" : isFutureDate ? "Future Tasks" : "Tasks")
-                                .font(.title.bold())
+        VStack(spacing: 0) {
+            // Main content
+            VStack(spacing: 16) {
+                // Date and Title Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(selectedDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    Text(isToday ? "Today's Tasks" : isFutureDate ? "Future Tasks" : "Tasks")
+                        .font(.title.bold())
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                
+                if sortedTasks.recurring.isEmpty && sortedTasks.nonRecurring.isEmpty {
+                    Button {
+                        showingAddTask = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(.blue)
+                                .font(.title2)
+                            Text("Add New Task")
+                                .font(.body)
+                            Spacer()
                         }
-                        .padding(.horizontal)
-                        
-                        if availableTasks.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: "checklist")
-                                    .font(.largeTitle)
-                                    .foregroundStyle(.secondary)
-                                Text(isFutureDate ? "Plan ahead by adding tasks" : "No tasks for this day")
-                                    .foregroundStyle(.secondary)
-                                Button("Add Task") {
-                                    isAddingTask = true
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            List {
-                                ForEach(sortedTasks) { task in
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .padding(.horizontal)
+                    
+                    VStack(spacing: 12) {
+                        Image(systemName: "checklist")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text(isFutureDate ? "Plan ahead by adding tasks" : "No tasks for this day")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    List {
+                        // Recurring Tasks Section
+                        if !sortedTasks.recurring.isEmpty {
+                            Section(header: Text("Recurring Tasks")) {
+                                ForEach(sortedTasks.recurring) { task in
                                     TaskRow(
                                         task: task,
                                         onToggle: {
                                             viewModel.toggleTaskCompletion(task, for: selectedDate)
                                         },
                                         selectedDate: selectedDate,
-                                        onConfetti: {
-                                            triggerConfetti()
-                                        }
+                                        onConfetti: {}
                                     )
-                                    .swipeActions(edge: .trailing) {
+                                    .padding(.vertical, 8)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                         Button(role: .destructive) {
-                                            viewModel.deleteTask(task, for: task.isRecurring ? selectedDate : nil)
+                                            viewModel.excludeRecurringTask(task, for: selectedDate)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
                                         
                                         Button {
+                                            showingEditTask = true
                                             taskToEdit = task
+                                            isEditingRecurring = true
                                         } label: {
                                             Label("Edit", systemImage: "pencil")
                                         }
-                                        .tint(.blue)
+                                        .tint(.orange)
                                     }
                                 }
                             }
-                            .listStyle(.inset)
+                            .listSectionSpacing(.compact)
                         }
-                    }
-                    
-                    if DayBoundary.canReflectOn(selectedDate) {
-                        Button {
-                            showingComparison = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "chart.bar.fill")
-                                Text("Did I get better?")
+                        
+                        // Non-recurring Tasks Section
+                        if !sortedTasks.nonRecurring.isEmpty {
+                            Section(header: Text("One-time Tasks")) {
+                                ForEach(sortedTasks.nonRecurring) { task in
+                                    TaskRow(
+                                        task: task,
+                                        onToggle: {
+                                            viewModel.toggleTaskCompletion(task, for: selectedDate)
+                                        },
+                                        selectedDate: selectedDate,
+                                        onConfetti: {}
+                                    )
+                                    .padding(.vertical, 6)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button(role: .destructive) {
+                                            viewModel.deleteTask(task, for: selectedDate)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                        
+                                        Button {
+                                            showingEditTask = true
+                                            taskToEdit = task
+                                            isEditingRecurring = false
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(.orange)
+                                    }
+                                }
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .listSectionSpacing(.compact)
                         }
-                        .padding()
-                    }
-                }
-                
-                // Confetti layer
-                ZStack {
-                    if isConfettiActive {
-                        ConfettiCannon(
-                            counter: $confettiCounter,
-                            num: 50,
-                            openingAngle: Angle(degrees: 0),
-                            closingAngle: Angle(degrees: 360),
-                            radius: 200,
-                            repetitions: 1,
-                            repetitionInterval: 0.02
-                        )
-                        .position(x: UIScreen.main.bounds.width / 2, y: -100)
-                        .opacity(confettiOpacity)
-                        .animation(.easeOut(duration: 0.5), value: confettiOpacity)
-                        .onAppear {
-                            confettiOpacity = 1.0
-                            scheduleConfettiCleanup()
+                        
+                        // Add Task Button Section at the bottom of the list
+                        Section {
+                            Button {
+                                showingAddTask = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.blue)
+                                    Text("Add New Task")
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                            }
                         }
                     }
+                    .listStyle(.insetGrouped)
                 }
-                .allowsHitTesting(false)
-                .zIndex(.infinity)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isAddingTask = true
-                    } label: {
-                        Text("Add Task")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $isAddingTask) {
-            AddTaskView(viewModel: viewModel, selectedDate: selectedDate)
-        }
-        .sheet(item: $taskToEdit) { task in
-            if task.isRecurring {
-                AddRecurringTaskView(viewModel: viewModel, taskToEdit: task)
-            } else {
-                AddTaskView(viewModel: viewModel, selectedDate: selectedDate, taskToEdit: task)
-            }
-        }
-        .sheet(isPresented: $showingComparison) {
-            BetterThanYesterdayView(viewModel: viewModel, selectedDate: selectedDate)
-        }
-    }
-    
-    private func triggerConfetti() {
-        // Reset states for new animation
-        isConfettiActive = true
-        confettiOpacity = 0.0
-        
-        // Trigger new confetti
-        DispatchQueue.main.async {
-            confettiCounter += 1
-        }
-    }
-    
-    private func scheduleConfettiCleanup() {
-        // Start fade out
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            withAnimation {
-                confettiOpacity = 0.0
             }
             
-            // Cleanup after fade out
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isConfettiActive = false
+            // Reflection Button at bottom
+            if isToday || DayBoundary.canReflectOn(selectedDate) {
+                Button {
+                    showingReflection = true
+                } label: {
+                    Text("Reflect on My Day")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding()
             }
         }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showManageRecurring = true
+                } label: {
+                    Image(systemName: "repeat.circle")
+                        .font(.title3)
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddTask) {
+            AddTaskView(viewModel: viewModel, selectedDate: selectedDate)
+        }
+        .sheet(isPresented: $showManageRecurring) {
+            ManageRecurringTasksView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingReflection) {
+            BetterThanYesterdayView(viewModel: viewModel, selectedDate: selectedDate)
+        }
+        .sheet(isPresented: $showingEditTask) {
+            if let task = taskToEdit {
+                EditTaskView(
+                    task: task,
+                    isRecurring: isEditingRecurring,
+                    selectedDate: selectedDate,
+                    viewModel: viewModel
+                )
+            }
+        }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        TaskListView(
+            viewModel: TaskListViewModel(),
+            selectedDate: Date()
+        )
     }
 } 
