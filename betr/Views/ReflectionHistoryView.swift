@@ -39,7 +39,8 @@ struct ReflectionHistoryView: View {
                         reflection: viewModel.todayReflection,
                         completedTasks: taskViewModel.completedTasksCount(for: Date()),
                         totalTasks: taskViewModel.availableTasksCount(for: Date()),
-                        onTap: { selectedDate = IdentifiableDate(date: Date()) }
+                        onTap: { selectedDate = IdentifiableDate(date: Date()) },
+                        viewModel: taskViewModel
                     )
                     
                     // History
