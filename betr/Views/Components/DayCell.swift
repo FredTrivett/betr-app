@@ -38,12 +38,10 @@ struct DayCell: View {
             return .clear
         }
         
-        // If today has a reflection, use its color
         if let rating = reflectionRating {
             return rating.color
         }
         
-        // Default to blue for today with no reflection
         return .blue
     }
     
@@ -51,27 +49,28 @@ struct DayCell: View {
         if isFutureDate {
             return .clear
         }
-        if isSelected {
-            return .blue.opacity(0.3)
-        }
+        
+        let baseColor: Color
         if let rating = reflectionRating {
-            switch rating {
-            case .better:
-                return .green.opacity(0.2)
-            case .same:
-                return .orange.opacity(0.2)
-            case .worse:
-                return .red.opacity(0.2)
+            baseColor = rating.color
+        } else {
+            switch completionStatus {
+            case .full:
+                baseColor = .green
+            case .partial:
+                baseColor = .yellow
+            case .none:
+                baseColor = .clear
             }
         }
-        switch completionStatus {
-        case .full:
-            return .green.opacity(0.3)
-        case .partial:
-            return .yellow.opacity(0.3)
-        case .none:
-            return .clear
+        
+        // If selected, return a darker version of the base color
+        if isSelected {
+            return baseColor.opacity(baseColor == .clear ? 0.3 : 0.4)  // Darker if selected
         }
+        
+        // Otherwise return the normal opacity
+        return baseColor.opacity(baseColor == .clear ? 0 : 0.2)
     }
     
     private var completionIndicator: some View {
