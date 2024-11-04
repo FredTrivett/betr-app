@@ -7,39 +7,41 @@ struct TaskRow: View {
     let onConfetti: () -> Void
     
     var body: some View {
-        HStack {
-            Button(action: {
-                onToggle()
-                if task.isCompletedForDate(selectedDate) {
-                    onConfetti()
-                }
-            }) {
+        Button {
+            onToggle()
+            if task.isCompletedForDate(selectedDate) {
+                onConfetti()
+            }
+        } label: {
+            HStack(spacing: 12) {
                 Image(systemName: task.isCompletedForDate(selectedDate) ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(task.isCompletedForDate(selectedDate) ? .green : .gray)
                     .font(.title2)
-            }
-            .buttonStyle(.plain)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(task.title)
-                    .strikethrough(task.isCompletedForDate(selectedDate))
                 
-                if !task.description.isEmpty {
-                    Text(task.description)
-                        .font(.caption)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(task.title)
+                        .strikethrough(task.isCompletedForDate(selectedDate))
+                        .foregroundStyle(.primary)
+                    
+                    if !task.description.isEmpty {
+                        Text(task.description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Spacer(minLength: 0)
+                
+                if task.isRecurring {
+                    Image(systemName: "repeat")
                         .foregroundStyle(.secondary)
+                        .font(.caption)
                 }
             }
-            
-            Spacer()
-            
-            if task.isRecurring {
-                Image(systemName: "repeat")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
     }
 }
 
