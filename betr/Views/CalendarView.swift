@@ -65,6 +65,10 @@ struct CalendarView: View {
             .navigationBarHidden(true)
             .navigationDestination(for: Date.self) { date in
                 TaskListView(viewModel: taskViewModel, selectedDate: date)
+                    .onDisappear {
+                        // Reset selectedDate when navigating back
+                        selectedDate = nil
+                    }
             }
         }
         .onChange(of: selectedDate) { _, newDate in
