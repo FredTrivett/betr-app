@@ -2,19 +2,28 @@ import SwiftUI
 
 struct ReflectionHistoryList: View {
     let reflections: [DailyReflection]
-    let onLoadMore: () -> Void
-    let onTapReflection: (Date) -> Void
+    let onTapReflection: (DailyReflection) -> Void
     
     var body: some View {
-        LazyVStack(spacing: 12) {
+        List {
             ForEach(reflections) { reflection in
                 ReflectionRow(reflection: reflection, onTap: onTapReflection)
-                    .onAppear {
-                        if reflection == reflections.last {
-                            onLoadMore()
-                        }
-                    }
             }
         }
+        .listStyle(.plain)
     }
+}
+
+#Preview {
+    ReflectionHistoryList(
+        reflections: [
+            DailyReflection(
+                date: Date(),
+                rating: .better,
+                tasksCompleted: 3,
+                totalTasks: 4
+            )
+        ],
+        onTapReflection: { _ in }
+    )
 } 
