@@ -12,10 +12,10 @@ struct DayCell: View {
     
     var body: some View {
         ZStack {
-            Circle()
+            RoundedRectangle(cornerRadius: 8)
                 .fill(backgroundColor)
                 .overlay(
-                    Circle()
+                    RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(isToday ? .blue : .clear, lineWidth: 2)
                 )
             
