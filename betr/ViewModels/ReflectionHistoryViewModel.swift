@@ -42,8 +42,9 @@ class ReflectionHistoryViewModel: ObservableObject {
         }
     }
     
-    func addReflection(_ rating: ReflectionRating, stats: (completed: Int, total: Int)) {
+    func addReflection(_ rating: ReflectionRating, stats: (completed: Int, total: Int), for date: Date) {
         let reflection = DailyReflection(
+            date: date,
             rating: rating,
             tasksCompleted: stats.completed,
             totalTasks: stats.total
@@ -52,7 +53,7 @@ class ReflectionHistoryViewModel: ObservableObject {
         do {
             try storage.saveReflection(reflection)
             loadReflections()
-            objectWillChange.send() // Force UI update
+            objectWillChange.send()
         } catch {
             print("Failed to save reflection: \(error)")
         }

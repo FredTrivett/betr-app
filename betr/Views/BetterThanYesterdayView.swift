@@ -15,19 +15,35 @@ struct BetterThanYesterdayView: View {
     }
     
     private var comparison: ProgressComparison? {
-        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) else { return nil }
-        return viewModel.compareProgress(current: selectedDate, previous: yesterday)
+        guard let previousDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) else { return nil }
+        return viewModel.compareProgress(current: selectedDate, previous: previousDate)
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter
+    }
+    
+    private func getDateDisplay(_ date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return "Today"
+        } else if Calendar.current.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            return dateFormatter.string(from: date)
+        }
     }
     
     var body: some View {
         NavigationStack {
             ZStack {
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: 12) {
                         if let comparison = comparison {
-                            // Today's stats
+                            // Selected date stats
                             VStack(spacing: 8) {
-                                Text("Today")
+                                Text(getDateDisplay(selectedDate))
                                     .font(.headline)
                                 Text("\(comparison.currentStats.completed)/\(comparison.currentStats.total) tasks")
                                     .font(.title)
@@ -36,7 +52,7 @@ struct BetterThanYesterdayView: View {
                                 TaskList(
                                     tasks: viewModel.tasks,
                                     date: selectedDate,
-                                    title: "Today's Tasks"
+                                    title: "Tasks"
                                 )
                             }
                             .padding()
@@ -44,18 +60,24 @@ struct BetterThanYesterdayView: View {
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             
-                            // Yesterday's stats
+                            // Add VS text here with reduced padding
+                            Text("vs")
+                                .font(.title2.bold())
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 4)
+                            
+                            // Previous day stats
                             VStack(spacing: 8) {
-                                Text("Yesterday")
+                                Text(getDateDisplay(comparison.previousDate))
                                     .font(.headline)
                                 Text("\(comparison.previousStats.completed)/\(comparison.previousStats.total) tasks")
                                     .font(.title)
                                 
-                                // Yesterday's task list
+                                // Previous day's task list
                                 TaskList(
                                     tasks: viewModel.tasks,
                                     date: comparison.previousDate,
-                                    title: "Yesterday's Tasks"
+                                    title: "Tasks"
                                 )
                             }
                             .padding()
@@ -63,24 +85,6 @@ struct BetterThanYesterdayView: View {
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             
-                            // Percentage change indicator
-                            if comparison.currentStats.total > 0 && comparison.previousStats.total > 0 {
-                                HStack(spacing: 12) {
-                                    Image(systemName: comparison.isImprovement ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                                        .font(.title2)
-                                        .foregroundStyle(comparison.isImprovement ? .green : .red)
-                                    
-                                    Text(comparison.formattedPercentageChange)
-                                        .font(.headline)
-                                        .foregroundStyle(comparison.isImprovement ? .green : .red)
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                            }
-                            
-                            // Add spacer to push content up
                             Spacer(minLength: 100)
                         }
                     }
@@ -95,12 +99,16 @@ struct BetterThanYesterdayView: View {
                             Text("How do you feel about your progress?")
                                 .font(.headline)
                             
-                            HStack(spacing: 16) {
+                            HStack {
+                                Spacer(minLength: 16)  // Add padding to the sides
+                                
                                 RatingButton(
                                     rating: .better,
                                     isSelected: selectedRating == .better,
                                     action: { submitReflection(.better, stats: comparison.currentStats) }
                                 )
+                                
+                                Spacer()  // Equal spacing between buttons
                                 
                                 RatingButton(
                                     rating: .same,
@@ -108,14 +116,19 @@ struct BetterThanYesterdayView: View {
                                     action: { submitReflection(.same, stats: comparison.currentStats) }
                                 )
                                 
+                                Spacer()  // Equal spacing between buttons
+                                
                                 RatingButton(
                                     rating: .worse,
                                     isSelected: selectedRating == .worse,
                                     action: { submitReflection(.worse, stats: comparison.currentStats) }
                                 )
+                                
+                                Spacer(minLength: 16)  // Add padding to the sides
                             }
                         }
                         .padding()
+                        .frame(maxWidth: .infinity)  // Make it full width
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding()
@@ -160,7 +173,7 @@ struct BetterThanYesterdayView: View {
     
     private func submitReflection(_ rating: ReflectionRating, stats: (completed: Int, total: Int)) {
         selectedRating = rating
-        reflectionViewModel.addReflection(rating, stats: stats)
+        reflectionViewModel.addReflection(rating, stats: stats, for: selectedDate)
         showingFeedback = true
     }
 }
@@ -187,7 +200,7 @@ private struct RatingButton: View {
                 Text(rating.rawValue.capitalized)
                     .font(.caption)
             }
-            .frame(width: 60)
+            .frame(maxWidth: .infinity)  // Make button take equal width
             .foregroundStyle(rating.color)
             .padding(.vertical, 8)
             .padding(.horizontal, 4)
