@@ -5,10 +5,8 @@ struct CalendarView: View {
     @StateObject private var calendarViewModel: CalendarViewModel
     @ObservedObject var taskViewModel: TaskListViewModel
     @State private var showingTaskList = false
-    @State private var showScrollToToday = false
     @State private var showManageRecurring = false
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var currentDayPosition: ScrollPosition = .visible
     @State private var showingProgressHistory = false
     @State private var showingStreakView = false
     @State private var selectedDate: Date?
@@ -46,27 +44,20 @@ struct CalendarView: View {
                     }
                     
                     // Bottom content
-                    VStack {
-                        Button {
-                            showingProgressHistory = true
-                        } label: {
-                            ProgressSummaryWidget(viewModel: taskViewModel)
-                                .padding(.horizontal)
-                                .padding(.bottom, 8)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        if showScrollToToday {
-                            scrollToTodayButton
-                        }
+                    Button {
+                        showingProgressHistory = true
+                    } label: {
+                        ProgressSummaryWidget(viewModel: taskViewModel)
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .navigationBarHidden(true)
             .navigationDestination(for: Date.self) { date in
                 TaskListView(viewModel: taskViewModel, selectedDate: date)
                     .onDisappear {
-                        // Reset selectedDate when navigating back
                         selectedDate = nil
                     }
             }
@@ -88,7 +79,6 @@ struct CalendarView: View {
         .sheet(isPresented: $showingReflection) {
             BetterThanYesterdayView(viewModel: taskViewModel, selectedDate: Date())
         }
-        .onPreferenceChange(ScrollOffsetPreferenceKey.self, perform: handleScrollOffset)
         .onChange(of: taskViewModel.tasks) { _, _ in
             calendarViewModel.checkAndUpdateStreak()
         }
@@ -150,42 +140,6 @@ struct CalendarView: View {
             )
         }
     }
-    
-    private var scrollToTodayButton: some View {
-        VStack {
-            Spacer()
-            Button(action: scrollToToday) {
-                HStack {
-                    Image(systemName: currentDayPosition == .above ? "arrow.up" : "arrow.down")
-                    Text("Today")
-                }
-                .padding()
-                .background(.thinMaterial)
-                .clipShape(Capsule())
-                .shadow(radius: 5)
-            }
-            .padding(.bottom, 100)
-        }
-    }
-    
-    private func handleScrollOffset(_ offset: CGFloat) {
-        let threshold: CGFloat = 200
-        if offset < -threshold {
-            currentDayPosition = .above
-            showScrollToToday = true
-        } else if offset > threshold {
-            currentDayPosition = .below
-            showScrollToToday = true
-        } else {
-            showScrollToToday = false
-        }
-    }
-    
-    private func scrollToToday() {
-        withAnimation {
-            scrollProxy?.scrollTo(0, anchor: .center)
-        }
-    }
 }
 
 // Keep these helper types in CalendarView.swift
@@ -194,12 +148,6 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
-}
-
-enum ScrollPosition {
-    case above
-    case below
-    case visible
 }
 
 // Keep the UIApplication extension

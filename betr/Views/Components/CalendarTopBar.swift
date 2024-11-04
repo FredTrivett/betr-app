@@ -11,8 +11,10 @@ struct CalendarTopBar: View {
                 Button(action: onStreakTap) {
                     HStack(spacing: 4) {
                         Text("\(streak)")
-                            .font(.headline)
+                            .font(.body.weight(.black))
+                            .foregroundStyle(.orange)
                         Image(systemName: "flame.fill")
+                            .font(.body)
                             .foregroundStyle(.orange)
                     }
                     .padding(.horizontal, 12)
