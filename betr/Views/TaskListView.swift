@@ -7,9 +7,6 @@ struct TaskListView: View {
     @State private var showingAddTask = false
     @State private var showManageRecurring = false
     @State private var showingReflection = false
-    @State private var showingEditTask = false
-    @State private var taskToEdit: Task?
-    @State private var isEditingRecurring = false
     
     private var sortedTasks: (recurring: [Task], nonRecurring: [Task]) {
         let available = viewModel.tasks.filter { task in
@@ -90,21 +87,12 @@ struct TaskListView: View {
                                         onConfetti: {}
                                     )
                                     .padding(.vertical, 8)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
                                             viewModel.excludeRecurringTask(task, for: selectedDate)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
-                                        
-                                        Button {
-                                            showingEditTask = true
-                                            taskToEdit = task
-                                            isEditingRecurring = true
-                                        } label: {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                        .tint(.orange)
                                     }
                                 }
                             }
@@ -124,21 +112,12 @@ struct TaskListView: View {
                                         onConfetti: {}
                                     )
                                     .padding(.vertical, 6)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
                                             viewModel.deleteTask(task, for: selectedDate)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
-                                        
-                                        Button {
-                                            showingEditTask = true
-                                            taskToEdit = task
-                                            isEditingRecurring = false
-                                        } label: {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                        .tint(.orange)
                                     }
                                 }
                             }
@@ -200,16 +179,6 @@ struct TaskListView: View {
         }
         .sheet(isPresented: $showingReflection) {
             BetterThanYesterdayView(viewModel: viewModel, selectedDate: selectedDate)
-        }
-        .sheet(isPresented: $showingEditTask) {
-            if let task = taskToEdit {
-                EditTaskView(
-                    task: task,
-                    isRecurring: isEditingRecurring,
-                    selectedDate: selectedDate,
-                    viewModel: viewModel
-                )
-            }
         }
     }
 }

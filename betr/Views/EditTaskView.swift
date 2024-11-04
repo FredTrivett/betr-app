@@ -2,10 +2,10 @@ import SwiftUI
 
 struct EditTaskView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: TaskListViewModel
     let task: Task
     let isRecurring: Bool
     let selectedDate: Date
-    @ObservedObject var viewModel: TaskListViewModel
     
     @State private var title: String
     @State private var description: String
@@ -15,8 +15,9 @@ struct EditTaskView: View {
         self.isRecurring = isRecurring
         self.selectedDate = selectedDate
         self.viewModel = viewModel
-        _title = State(initialValue: task.title)
-        _description = State(initialValue: task.description)
+        
+        self._title = State(initialValue: task.title)
+        self._description = State(initialValue: task.description ?? "")
     }
     
     var body: some View {
@@ -30,7 +31,7 @@ struct EditTaskView: View {
                 
                 if isRecurring {
                     Section {
-                        Text("This is a recurring task. Changes will only affect this instance.")
+                        Text("This is a recurring task. Changes will affect all future occurrences.")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -46,23 +47,11 @@ struct EditTaskView: View {
                 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") {
-                        if isRecurring {
-                            // Create a one-time override
-                            let override = Task(
-                                title: title,
-                                description: description,
-                                isRecurring: false,
-                                creationDate: selectedDate
-                            )
-                            viewModel.addTask(override)
-                            viewModel.excludeRecurringTask(task, for: selectedDate)
-                        } else {
-                            // Update the existing task
-                            var updatedTask = task
-                            updatedTask.title = title
-                            updatedTask.description = description
-                            viewModel.updateTask(updatedTask)
-                        }
+                        var updatedTask = task
+                        updatedTask.title = title
+                        updatedTask.description = description
+                        
+                        viewModel.updateTask(updatedTask)
                         dismiss()
                     }
                     .disabled(title.isEmpty)

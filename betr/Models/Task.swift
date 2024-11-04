@@ -8,6 +8,8 @@ struct Task: Identifiable, Hashable, Codable {
     var completedDates: Set<Date>
     var excludedDates: Set<Date>
     var creationDate: Date
+    var lastModifiedDate: Date?
+    var originalTaskId: UUID?  // To track which recurring task this was created from
     
     init(
         id: UUID = UUID(),
@@ -16,7 +18,9 @@ struct Task: Identifiable, Hashable, Codable {
         isRecurring: Bool = false,
         completedDates: Set<Date> = [],
         excludedDates: Set<Date> = [],
-        creationDate: Date = Date()
+        creationDate: Date = Date(),
+        lastModifiedDate: Date? = nil,
+        originalTaskId: UUID? = nil
     ) {
         self.id = id
         self.title = title
@@ -25,6 +29,8 @@ struct Task: Identifiable, Hashable, Codable {
         self.completedDates = completedDates
         self.excludedDates = excludedDates
         self.creationDate = creationDate
+        self.lastModifiedDate = lastModifiedDate
+        self.originalTaskId = originalTaskId
     }
     
     func isCompletedForDate(_ date: Date) -> Bool {
@@ -34,12 +40,16 @@ struct Task: Identifiable, Hashable, Codable {
     
     func isAvailableForDate(_ date: Date) -> Bool {
         let normalizedDate = Calendar.current.startOfDay(for: date)
+        let normalizedCreationDate = Calendar.current.startOfDay(for: creationDate)
         let isExcluded = excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         
         if isRecurring {
-            return !isExcluded
+            // For recurring tasks, show on or after creation date
+            let isAfterCreation = Calendar.current.compare(normalizedDate, to: normalizedCreationDate, toGranularity: .day) != .orderedAscending
+            return isAfterCreation && !isExcluded
         } else {
-            return Calendar.current.isDate(creationDate, inSameDayAs: normalizedDate) && !isExcluded
+            // Non-recurring tasks only show on their creation date
+            return Calendar.current.isDate(normalizedCreationDate, inSameDayAs: normalizedDate) && !isExcluded
         }
     }
     

@@ -52,7 +52,12 @@ class TaskListViewModel: ObservableObject {
     }
     
     func addTask(_ task: Task) {
-        tasks.append(task)
+        var newTask = task
+        if task.isRecurring {
+            newTask.creationDate = Calendar.current.startOfDay(for: Date())
+            newTask.originalTaskId = task.id
+        }
+        tasks.append(newTask)
         saveTasks()
     }
     
@@ -90,7 +95,21 @@ class TaskListViewModel: ObservableObject {
     
     func updateTask(_ task: Task) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            tasks[index] = task
+            var updatedTask = task
+            if task.isRecurring {
+                // For recurring tasks, set lastModifiedDate to today
+                updatedTask.lastModifiedDate = Calendar.current.startOfDay(for: Date())
+                
+                // Get the original task
+                let originalTask = tasks[index]
+                
+                // Preserve completion dates for past dates
+                let today = Calendar.current.startOfDay(for: Date())
+                updatedTask.completedDates = originalTask.completedDates.filter { date in
+                    Calendar.current.compare(date, to: today, toGranularity: .day) == .orderedAscending
+                }
+            }
+            tasks[index] = updatedTask
             saveTasks()
         }
     }
