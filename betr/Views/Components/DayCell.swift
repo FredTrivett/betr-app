@@ -19,15 +19,9 @@ struct DayCell: View {
                         .strokeBorder(borderColor, lineWidth: 2)
                 )
             
-            VStack(spacing: 2) {
-                Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: 16, weight: isToday ? .bold : .regular))
-                    .foregroundStyle(isFutureDate ? .secondary : .primary)
-                
-                if !isFutureDate {
-                    completionIndicator
-                }
-            }
+            Text("\(calendar.component(.day, from: date))")
+                .font(.system(size: 16, weight: isToday ? .bold : .regular))
+                .foregroundStyle(isFutureDate ? .secondary : .primary)
         }
         .opacity(isFutureDate ? 0.5 : 1.0)
         .aspectRatio(1, contentMode: .fit)
@@ -64,30 +58,11 @@ struct DayCell: View {
             }
         }
         
-        // If selected, return a darker version of the base color
         if isSelected {
-            return baseColor.opacity(baseColor == .clear ? 0.3 : 0.4)  // Darker if selected
+            return baseColor.opacity(baseColor == .clear ? 0.3 : 0.4)
         }
         
-        // Otherwise return the normal opacity
         return baseColor.opacity(baseColor == .clear ? 0 : 0.2)
-    }
-    
-    private var completionIndicator: some View {
-        Group {
-            switch completionStatus {
-            case .full:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.system(size: 8))
-            case .partial:
-                Image(systemName: "circle.bottomhalf.filled")
-                    .foregroundStyle(.yellow)
-                    .font(.system(size: 8))
-            case .none:
-                EmptyView()
-            }
-        }
     }
 }
 
