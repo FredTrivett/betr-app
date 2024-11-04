@@ -144,6 +144,40 @@ class TaskListViewModel: ObservableObject {
             Calendar.current.isDate(reflection.date, inSameDayAs: date)
         }
     }
+    
+    func ignoreTaskForDay(_ task: Task, on date: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks[index]
+            let normalizedDate = Calendar.current.startOfDay(for: date)
+            updatedTask.excludedDates.insert(normalizedDate)
+            tasks[index] = updatedTask
+            saveTasks()
+        }
+    }
+    
+    func unignoreTaskForDay(_ task: Task, on date: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks[index]
+            let normalizedDate = Calendar.current.startOfDay(for: date)
+            updatedTask.excludedDates.remove(normalizedDate)
+            tasks[index] = updatedTask
+            saveTasks()
+        }
+    }
+    
+    func hasIgnoredTasksForDate(_ date: Date) -> Bool {
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        return tasks.contains { task in
+            task.isRecurring && task.excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
+        }
+    }
+    
+    func getIgnoredTasksForDate(_ date: Date) -> [Task] {
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        return tasks.filter { task in
+            task.isRecurring && task.excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
+        }
+    }
 }
 
 // Add this struct to represent progress comparison

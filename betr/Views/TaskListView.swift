@@ -7,6 +7,7 @@ struct TaskListView: View {
     @State private var showingAddTask = false
     @State private var showManageRecurring = false
     @State private var showingReflection = false
+    @State private var showingIgnoredTasks = false
     
     private var sortedTasks: (recurring: [Task], nonRecurring: [Task]) {
         let available = viewModel.tasks.filter { task in
@@ -76,7 +77,7 @@ struct TaskListView: View {
                     List {
                         // Recurring Tasks Section
                         if !sortedTasks.recurring.isEmpty {
-                            Section(header: Text("Recurring Tasks")) {
+                            Section {
                                 ForEach(sortedTasks.recurring) { task in
                                     TaskRow(
                                         task: task,
@@ -87,11 +88,26 @@ struct TaskListView: View {
                                         onConfetti: {}
                                     )
                                     .padding(.vertical, 8)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button(role: .destructive) {
-                                            viewModel.excludeRecurringTask(task, for: selectedDate)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button {
+                                            viewModel.ignoreTaskForDay(task, on: selectedDate)
                                         } label: {
-                                            Label("Delete", systemImage: "trash")
+                                            Label("Ignore", systemImage: "")
+                                        }
+                                        .tint(.orange)
+                                    }
+                                }
+                            } header: {
+                                HStack {
+                                    Text("Recurring Tasks")
+                                    Spacer()
+                                    if hasIgnoredTasks {
+                                        Button {
+                                            showingIgnoredTasks = true
+                                        } label: {
+                                            Text("Manage Ignored")
+                                                .font(.caption)
+                                                .foregroundStyle(.blue)
                                         }
                                     }
                                 }
@@ -180,6 +196,16 @@ struct TaskListView: View {
         .sheet(isPresented: $showingReflection) {
             BetterThanYesterdayView(viewModel: viewModel, selectedDate: selectedDate)
         }
+        .sheet(isPresented: $showingIgnoredTasks) {
+            IgnoredTasksView(
+                viewModel: viewModel,
+                date: selectedDate
+            )
+        }
+    }
+    
+    private var hasIgnoredTasks: Bool {
+        viewModel.hasIgnoredTasksForDate(selectedDate)
     }
 }
 
