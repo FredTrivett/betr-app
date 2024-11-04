@@ -12,21 +12,20 @@ struct ManageRecurringTasksView: View {
     
     var body: some View {
         NavigationStack {
-            List {
+            VStack {
                 if recurringTasks.isEmpty {
                     ContentUnavailableView(
                         "No Recurring Tasks",
                         systemImage: "repeat.circle",
-                        description: Text("Add a recurring task using the + button")
+                        description: Text("Add a recurring task using the button below")
                     )
                 } else {
-                    ForEach(recurringTasks) { task in
-                        Button {
-                            selectedTask = task
-                        } label: {
+                    List {
+                        ForEach(recurringTasks) { task in
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(task.title)
+                                        .foregroundStyle(.primary)
                                     if !task.description.isEmpty {
                                         Text(task.description)
                                             .font(.caption)
@@ -37,16 +36,34 @@ struct ManageRecurringTasksView: View {
                                 Image(systemName: "repeat.circle")
                                     .foregroundStyle(.secondary)
                             }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                viewModel.deleteTask(task)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedTask = task
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    viewModel.deleteTask(task)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
                     }
                 }
+                
+                // Add New Recurring Task button at bottom
+                Button {
+                    isAddingTask = true
+                } label: {
+                    Text("New Recurring Task")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding()
             }
             .navigationTitle("Recurring Tasks")
             .navigationBarTitleDisplayMode(.inline)
@@ -56,16 +73,9 @@ struct ManageRecurringTasksView: View {
                         dismiss()
                     }
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isAddingTask = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
             }
             .sheet(isPresented: $isAddingTask) {
-                AddRecurringTaskView(viewModel: viewModel)
+                AddTaskView(viewModel: viewModel, selectedDate: Date())
             }
             .sheet(item: $selectedTask) { task in
                 AddRecurringTaskView(viewModel: viewModel, taskToEdit: task)

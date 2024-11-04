@@ -4,31 +4,48 @@ struct IgnoredTasksView: View {
     @Environment(\.dismiss) private var dismiss: DismissAction
     @ObservedObject var viewModel: TaskListViewModel
     let date: Date
+    @State private var showingAddTask = false
     
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(viewModel.getIgnoredTasksForDate(date)) { task in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(task.title)
-                            if !task.description.isEmpty {
-                                Text(task.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+            VStack {
+                List {
+                    ForEach(viewModel.getIgnoredTasksForDate(date)) { task in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(task.title)
+                                if !task.description.isEmpty {
+                                    Text(task.description)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                        }
-                        
-                        Spacer()
-                        
-                        Button {
-                            viewModel.unignoreTaskForDay(task, on: date)
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(.blue)
+                            
+                            Spacer()
+                            
+                            Button {
+                                viewModel.unignoreTaskForDay(task, on: date)
+                            } label: {
+                                Text("Add Back")
+                                    .foregroundStyle(.blue)
+                            }
                         }
                     }
                 }
+                
+                // Add Recurring Task button at bottom
+                Button {
+                    showingAddTask = true
+                } label: {
+                    Text("Add Recurring Task")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding()
             }
             .navigationTitle("Ignored Tasks")
             .navigationBarTitleDisplayMode(.inline)
@@ -39,6 +56,9 @@ struct IgnoredTasksView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingAddTask) {
+            AddTaskView(viewModel: viewModel, selectedDate: date)
         }
     }
 } 
