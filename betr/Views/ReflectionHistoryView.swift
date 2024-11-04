@@ -4,7 +4,7 @@ struct ReflectionHistoryView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: ReflectionHistoryViewModel
     @State private var selectedTimeFrame: TimeFrame = .week
-    @State private var selectedDate: IdentifiableDate?
+    @State private var path = NavigationPath()
     let taskViewModel: TaskListViewModel
     
     init(taskViewModel: TaskListViewModel) {
@@ -13,7 +13,7 @@ struct ReflectionHistoryView: View {
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(spacing: 24) {
                     // Time frame selector
@@ -39,7 +39,7 @@ struct ReflectionHistoryView: View {
                         reflection: viewModel.todayReflection,
                         completedTasks: taskViewModel.completedTasksCount(for: Date()),
                         totalTasks: taskViewModel.availableTasksCount(for: Date()),
-                        onTap: { selectedDate = IdentifiableDate(date: Date()) },
+                        onTap: { path.append(Date()) },
                         viewModel: taskViewModel
                     )
                     
@@ -53,7 +53,7 @@ struct ReflectionHistoryView: View {
                             reflections: viewModel.displayedReflections,
                             onLoadMore: viewModel.loadMoreReflections,
                             onTapReflection: { date in
-                                selectedDate = IdentifiableDate(date: date)
+                                path.append(date)
                             }
                         )
                     }
@@ -69,8 +69,8 @@ struct ReflectionHistoryView: View {
                     }
                 }
             }
-            .sheet(item: $selectedDate) { identifiableDate in
-                TaskListView(viewModel: taskViewModel, selectedDate: identifiableDate.date)
+            .navigationDestination(for: Date.self) { date in
+                TaskListView(viewModel: taskViewModel, selectedDate: date)
             }
         }
     }

@@ -50,6 +50,8 @@ struct TodaySummary: View {
                         .frame(maxWidth: .infinity)
                     }
                 }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             
