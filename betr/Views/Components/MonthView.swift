@@ -36,7 +36,7 @@ struct MonthView: View {
                             isToday: calendar.isDateInToday(date),
                             completionStatus: getCompletionStatus(for: date),
                             isFutureDate: isFutureDate,
-                            reflectionRating: reflectionViewModel.getReflection(for: date)?.rating
+                            reflectionRating: getTodayReflection(for: date)?.rating
                         )
                         .id(calendar.isDateInToday(date) ? 0 : nil)
                         .onTapGesture {
@@ -98,6 +98,13 @@ struct MonthView: View {
         } else {
             return .partial
         }
+    }
+    
+    private func getTodayReflection(for date: Date) -> DailyReflection? {
+        if calendar.isDateInToday(date) {
+            return reflectionViewModel.todayReflection
+        }
+        return reflectionViewModel.getReflection(for: date)
     }
 }
 

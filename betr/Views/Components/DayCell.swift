@@ -16,7 +16,7 @@ struct DayCell: View {
                 .fill(backgroundColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(isToday ? .blue : .clear, lineWidth: 2)
+                        .strokeBorder(borderColor, lineWidth: 2)
                 )
             
             VStack(spacing: 2) {
@@ -31,6 +31,20 @@ struct DayCell: View {
         }
         .opacity(isFutureDate ? 0.5 : 1.0)
         .aspectRatio(1, contentMode: .fit)
+    }
+    
+    private var borderColor: Color {
+        if !isToday {
+            return .clear
+        }
+        
+        // If today has a reflection, use its color
+        if let rating = reflectionRating {
+            return rating.color
+        }
+        
+        // Default to blue for today with no reflection
+        return .blue
     }
     
     private var backgroundColor: Color {
