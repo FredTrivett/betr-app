@@ -38,18 +38,18 @@ struct DayBoundary {
     
     static func canReflectOn(_ date: Date) -> Bool {
         let calendar = Calendar.current
-        let effectiveDate = getEffectiveDate()
+        let today = calendar.startOfDay(for: Date())
+        let normalizedDate = calendar.startOfDay(for: date)
         
-        // Can reflect on the effective date
-        if calendar.isDate(date, inSameDayAs: effectiveDate) {
+        // Can reflect on today
+        if calendar.isDate(normalizedDate, inSameDayAs: today) {
             return true
         }
         
-        // If it's before 5 AM, can also reflect on yesterday
-        let hour = calendar.component(.hour, from: Date())
-        if hour < reflectionCutoffHour {
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: effectiveDate)!
-            return calendar.isDate(date, inSameDayAs: yesterday)
+        // Can reflect on yesterday
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+           calendar.isDate(normalizedDate, inSameDayAs: yesterday) {
+            return true
         }
         
         return false

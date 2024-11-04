@@ -29,6 +29,10 @@ struct TaskListView: View {
         Calendar.current.compare(selectedDate, to: Date(), toGranularity: .day) == .orderedDescending
     }
     
+    private var isYesterday: Bool {
+        Calendar.current.isDateInYesterday(selectedDate)
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // Main content
@@ -162,11 +166,11 @@ struct TaskListView: View {
             }
             
             // Reflection Button at bottom
-            if isToday || DayBoundary.canReflectOn(selectedDate) {
+            if isToday || isYesterday {
                 Button {
                     showingReflection = true
                 } label: {
-                    Text("Reflect on My Day")
+                    Text(isToday ? "Reflect on Today" : "Reflect on Yesterday")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
