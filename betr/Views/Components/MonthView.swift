@@ -5,6 +5,7 @@ struct MonthView: View {
     @Binding var selectedDate: Date?
     let taskViewModel: TaskListViewModel
     @Binding var showingTaskList: Bool
+    @StateObject private var reflectionViewModel = ReflectionHistoryViewModel()
     
     private let calendar = Calendar.current
     private let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -34,7 +35,8 @@ struct MonthView: View {
                             isSelected: selectedDate.map { calendar.isDate(date, inSameDayAs: $0) } ?? false,
                             isToday: calendar.isDateInToday(date),
                             completionStatus: getCompletionStatus(for: date),
-                            isFutureDate: isFutureDate
+                            isFutureDate: isFutureDate,
+                            reflectionRating: reflectionViewModel.getReflection(for: date)?.rating
                         )
                         .id(calendar.isDateInToday(date) ? 0 : nil)
                         .onTapGesture {
@@ -46,6 +48,10 @@ struct MonthView: View {
                     }
                 }
             }
+        }
+        .onAppear {
+            // This will ensure we have the latest reflection data
+            reflectionViewModel.loadReflections()
         }
     }
     

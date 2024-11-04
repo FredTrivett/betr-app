@@ -20,7 +20,8 @@ class ReflectionHistoryViewModel: ObservableObject {
         }
     }
     
-    private func loadReflections() {
+    // Make this public so it can be called from the view
+    func loadReflections() {
         do {
             reflections = try storage.loadReflections()
             reflections.sort { $0.date > $1.date }

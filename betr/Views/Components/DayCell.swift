@@ -6,6 +6,7 @@ struct DayCell: View {
     let isToday: Bool
     let completionStatus: DayCompletionStatus
     let isFutureDate: Bool
+    let reflectionRating: ReflectionRating?
     
     private let calendar = Calendar.current
     
@@ -38,6 +39,16 @@ struct DayCell: View {
         }
         if isSelected {
             return .blue.opacity(0.3)
+        }
+        if let rating = reflectionRating {
+            switch rating {
+            case .better:
+                return .green.opacity(0.2)
+            case .same:
+                return .orange.opacity(0.2)
+            case .worse:
+                return .red.opacity(0.2)
+            }
         }
         switch completionStatus {
         case .full:
@@ -73,6 +84,7 @@ struct DayCell: View {
         isSelected: true,
         isToday: true,
         completionStatus: .full,
-        isFutureDate: false
+        isFutureDate: false,
+        reflectionRating: nil
     )
 } 
