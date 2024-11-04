@@ -100,7 +100,7 @@ struct BetterThanYesterdayView: View {
                                 .font(.headline)
                             
                             HStack {
-                                Spacer(minLength: 16)  // Add padding to the sides
+                                Spacer(minLength: 8)  // Reduced from 16 to 8
                                 
                                 RatingButton(
                                     rating: .better,
@@ -108,7 +108,7 @@ struct BetterThanYesterdayView: View {
                                     action: { submitReflection(.better, stats: comparison.currentStats) }
                                 )
                                 
-                                Spacer()  // Equal spacing between buttons
+                                Spacer()
                                 
                                 RatingButton(
                                     rating: .same,
@@ -116,7 +116,7 @@ struct BetterThanYesterdayView: View {
                                     action: { submitReflection(.same, stats: comparison.currentStats) }
                                 )
                                 
-                                Spacer()  // Equal spacing between buttons
+                                Spacer()
                                 
                                 RatingButton(
                                     rating: .worse,
@@ -124,14 +124,16 @@ struct BetterThanYesterdayView: View {
                                     action: { submitReflection(.worse, stats: comparison.currentStats) }
                                 )
                                 
-                                Spacer(minLength: 16)  // Add padding to the sides
+                                Spacer(minLength: 8)  // Reduced from 16 to 8
                             }
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity)  // Make it full width
+                        .padding(.horizontal, 8)  // Reduced from default to 8
+                        .padding(.vertical)
+                        .frame(maxWidth: .infinity)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .padding()
+                        .padding(.horizontal, 8)  // Reduced outer padding too
+                        .padding(.bottom)
                     }
                 } else if !canReflect {
                     VStack {
@@ -240,10 +242,16 @@ struct TaskList: View {
                         .clipShape(Capsule())
                 }
                 
-                ForEach(completedTasks) { task in
-                    Text("• \(task.title)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 8) {
+                    ForEach(completedTasks) { task in
+                        Text("• \(task.title)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
             
@@ -258,10 +266,16 @@ struct TaskList: View {
                         .clipShape(Capsule())
                 }
                 
-                ForEach(incompleteTasks) { task in
-                    Text("• \(task.title)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 8) {
+                    ForEach(incompleteTasks) { task in
+                        Text("• \(task.title)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
         }
