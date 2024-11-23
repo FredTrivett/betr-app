@@ -6,11 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		F34463B72CD578B300F0991C /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F34463B62CD578B300F0991C /* ConfettiSwiftUI */; };
-		F34463B92CD57EB400F0991C /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F34463B82CD57EB400F0991C /* ConfettiSwiftUI */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		F34463642CD4ECEA00F0991C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -57,8 +52,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F34463B92CD57EB400F0991C /* ConfettiSwiftUI in Frameworks */,
-				F34463B72CD578B300F0991C /* ConfettiSwiftUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,8 +112,6 @@
 			);
 			name = betr;
 			packageProductDependencies = (
-				F34463B62CD578B300F0991C /* ConfettiSwiftUI */,
-				F34463B82CD57EB400F0991C /* ConfettiSwiftUI */,
 			);
 			productName = betr;
 			productReference = F34463532CD4ECE900F0991C /* betr.app */;
@@ -573,17 +564,6 @@
 			relativePath = "../../Downloads/ConfettiSwiftUI-master";
 		};
 /* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		F34463B62CD578B300F0991C /* ConfettiSwiftUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ConfettiSwiftUI;
-		};
-		F34463B82CD57EB400F0991C /* ConfettiSwiftUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ConfettiSwiftUI;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F344634B2CD4ECE900F0991C /* Project object */;
 }
