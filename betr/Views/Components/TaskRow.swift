@@ -1,5 +1,4 @@
 import SwiftUI
-import ConfettiSwiftUI
 
 struct TaskRow: View {
     let task: Task
@@ -8,22 +7,21 @@ struct TaskRow: View {
     let onConfetti: () -> Void
     
     var body: some View {
-        GeometryReader { geometry in
+        Button {
+            onToggle()
+            if task.isCompletedForDate(selectedDate) {
+                onConfetti()
+            }
+        } label: {
             HStack(spacing: 12) {
-                Button(action: {
-                    handleTaskToggle()
-                }) {
-                    Image(systemName: task.isCompletedForDate(selectedDate) ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundStyle(task.isCompletedForDate(selectedDate) ? .green : .gray)
-                        .animation(.spring(duration: 0.2), value: task.isCompletedForDate(selectedDate))
-                }
-                .buttonStyle(.plain)
+                Image(systemName: task.isCompletedForDate(selectedDate) ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(task.isCompletedForDate(selectedDate) ? .green : .gray)
+                    .font(.title2)
                 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(task.title)
-                        .font(.body)
                         .strikethrough(task.isCompletedForDate(selectedDate))
+                        .foregroundStyle(.primary)
                     
                     if !task.description.isEmpty {
                         Text(task.description)
@@ -32,32 +30,27 @@ struct TaskRow: View {
                     }
                 }
                 
-                Spacer()
+                Spacer(minLength: 0)
                 
                 if task.isRecurring {
-                    Image(systemName: "repeat.circle")
-                        .font(.title2)
+                    Image(systemName: "repeat")
                         .foregroundStyle(.secondary)
+                        .font(.caption)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .onTapGesture {
-                handleTaskToggle()
-            }
-            .padding(.vertical, 8)
         }
-        .frame(height: task.description.isEmpty ? 44 : 65)
+        .buttonStyle(.plain)
     }
-    
-    private func handleTaskToggle() {
-        let wasCompleted = task.isCompletedForDate(selectedDate)
-        if !wasCompleted {
-            onConfetti()
-            DispatchQueue.main.async {
-                onToggle()
-            }
-        } else {
-            onToggle()
-        }
-    }
+}
+
+#Preview {
+    TaskRow(
+        task: Task(title: "Sample Task", description: "Sample Description"),
+        onToggle: {},
+        selectedDate: Date(),
+        onConfetti: {}
+    )
+    .padding()
 } 

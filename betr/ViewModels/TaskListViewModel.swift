@@ -36,21 +36,28 @@ class TaskListViewModel: ObservableObject {
         }
     }
     
-    func deleteTask(_ task: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            var updatedTask = tasks[index]
-            if updatedTask.isRecurring {
-                updatedTask.deletedDate = Date()
+    func deleteTask(_ task: Task, for date: Date? = nil) {
+        if task.isRecurring && date != nil {
+            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                var updatedTask = tasks[index]
+                let normalizedDate = Calendar.current.startOfDay(for: date!)
+                updatedTask.excludedDates.insert(normalizedDate)
                 tasks[index] = updatedTask
-            } else {
-                tasks.remove(at: index)
+                saveTasks()
             }
+        } else {
+            tasks.removeAll { $0.id == task.id }
             saveTasks()
         }
     }
     
     func addTask(_ task: Task) {
-        tasks.append(task)
+        var newTask = task
+        if task.isRecurring {
+            newTask.creationDate = Calendar.current.startOfDay(for: Date())
+            newTask.originalTaskId = task.id
+        }
+        tasks.append(newTask)
         saveTasks()
     }
     
@@ -86,10 +93,89 @@ class TaskListViewModel: ObservableObject {
         )
     }
     
-    func updateTask(_ updatedTask: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
+    func updateTask(_ task: Task) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = task
+            if task.isRecurring {
+                // For recurring tasks, set lastModifiedDate to today
+                updatedTask.lastModifiedDate = Calendar.current.startOfDay(for: Date())
+                
+                // Get the original task
+                let originalTask = tasks[index]
+                
+                // Preserve completion dates for past dates
+                let today = Calendar.current.startOfDay(for: Date())
+                updatedTask.completedDates = originalTask.completedDates.filter { date in
+                    Calendar.current.compare(date, to: today, toGranularity: .day) == .orderedAscending
+                }
+            }
             tasks[index] = updatedTask
             saveTasks()
+        }
+    }
+    
+    func completedTasksCount(for date: Date) -> Int {
+        tasks.filter { task in
+            task.isAvailableForDate(date) && task.isCompletedForDate(date)
+        }.count
+    }
+    
+    func availableTasksCount(for date: Date) -> Int {
+        tasks.filter { task in
+            task.isAvailableForDate(date)
+        }.count
+    }
+    
+    func excludeRecurringTask(_ task: Task, for date: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks[index]
+            let normalizedDate = Calendar.current.startOfDay(for: date)
+            updatedTask.excludedDates.insert(normalizedDate)
+            tasks[index] = updatedTask
+            saveTasks()
+        }
+    }
+    
+    func getReflectionForDate(_ date: Date) -> DailyReflection? {
+        // This should connect to your reflection storage system
+        let storage = ReflectionHistoryStorage()
+        let reflections = try? storage.loadReflections()
+        return reflections?.first { reflection in
+            Calendar.current.isDate(reflection.date, inSameDayAs: date)
+        }
+    }
+    
+    func ignoreTaskForDay(_ task: Task, on date: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks[index]
+            let normalizedDate = Calendar.current.startOfDay(for: date)
+            updatedTask.excludedDates.insert(normalizedDate)
+            tasks[index] = updatedTask
+            saveTasks()
+        }
+    }
+    
+    func unignoreTaskForDay(_ task: Task, on date: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks[index]
+            let normalizedDate = Calendar.current.startOfDay(for: date)
+            updatedTask.excludedDates.remove(normalizedDate)
+            tasks[index] = updatedTask
+            saveTasks()
+        }
+    }
+    
+    func hasIgnoredTasksForDate(_ date: Date) -> Bool {
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        return tasks.contains { task in
+            task.isRecurring && task.excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
+        }
+    }
+    
+    func getIgnoredTasksForDate(_ date: Date) -> [Task] {
+        let normalizedDate = Calendar.current.startOfDay(for: date)
+        return tasks.filter { task in
+            task.isRecurring && task.excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
     }
 }

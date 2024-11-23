@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct DailyReflection: Identifiable, Codable {
+struct DailyReflection: Identifiable, Codable, Equatable {
     let id: UUID
     let date: Date
     let rating: ReflectionRating
@@ -18,6 +18,10 @@ struct DailyReflection: Identifiable, Codable {
         self.rating = rating
         self.tasksCompleted = tasksCompleted
         self.totalTasks = totalTasks
+    }
+    
+    static func == (lhs: DailyReflection, rhs: DailyReflection) -> Bool {
+        lhs.id == rhs.id
     }
 }
 
@@ -40,8 +44,16 @@ enum ReflectionRating: String, Codable {
     var color: Color {
         switch self {
         case .better: return .green
-        case .same: return .blue
+        case .same: return .orange
         case .worse: return .red
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .better: return "arrow.up.circle.fill"
+        case .same: return "equal.circle.fill"
+        case .worse: return "arrow.down.circle.fill"
         }
     }
 } 
