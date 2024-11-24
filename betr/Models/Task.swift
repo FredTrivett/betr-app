@@ -1,16 +1,45 @@
 import Foundation
 
+/// Represents a task that can be either one-time or recurring
 struct Task: Identifiable, Hashable, Codable {
+    /// Unique identifier for the task
     let id: UUID
-    var title: String
-    var description: String
-    var isRecurring: Bool
-    var completedDates: Set<Date>
-    var excludedDates: Set<Date>
-    var creationDate: Date
-    var lastModifiedDate: Date?
-    var originalTaskId: UUID?  // To track which recurring task this was created from
     
+    /// The title of the task
+    var title: String
+    
+    /// Optional description providing more details about the task
+    var description: String
+    
+    /// Indicates whether this task repeats
+    let isRecurring: Bool
+    
+    /// Dates when this task was completed
+    var completedDates: Set<Date>
+    
+    /// Dates when this recurring task was excluded
+    var excludedDates: Set<Date>
+    
+    /// The date when this task was created
+    var creationDate: Date
+    
+    /// The date when this task was last modified
+    var lastModifiedDate: Date?
+    
+    /// Reference to the original task if this is a recurring instance
+    var originalTaskId: UUID?
+    
+    /// Creates a new task
+    /// - Parameters:
+    ///   - id: Unique identifier (defaults to new UUID)
+    ///   - title: Task title
+    ///   - description: Optional task description
+    ///   - isRecurring: Whether task repeats
+    ///   - completedDates: Set of completion dates
+    ///   - excludedDates: Set of exclusion dates
+    ///   - creationDate: When task was created
+    ///   - lastModifiedDate: When task was last modified
+    ///   - originalTaskId: Reference to original task
     init(
         id: UUID = UUID(),
         title: String,
@@ -22,6 +51,10 @@ struct Task: Identifiable, Hashable, Codable {
         lastModifiedDate: Date? = nil,
         originalTaskId: UUID? = nil
     ) {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            fatalError("Task title cannot be empty")
+        }
+        
         self.id = id
         self.title = title
         self.description = description
@@ -33,26 +66,34 @@ struct Task: Identifiable, Hashable, Codable {
         self.originalTaskId = originalTaskId
     }
     
+    /// Checks if the task is completed for a specific date
+    /// - Parameter date: The date to check
+    /// - Returns: Whether the task is completed on that date
     func isCompletedForDate(_ date: Date) -> Bool {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         return completedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
     }
     
+    /// Checks if the task is available for a specific date
+    /// - Parameter date: The date to check
+    /// - Returns: Whether the task is available on that date
     func isAvailableForDate(_ date: Date) -> Bool {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         let normalizedCreationDate = Calendar.current.startOfDay(for: creationDate)
         let isExcluded = excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         
         if isRecurring {
-            // For recurring tasks, show on or after creation date
             let isAfterCreation = Calendar.current.compare(normalizedDate, to: normalizedCreationDate, toGranularity: .day) != .orderedAscending
             return isAfterCreation && !isExcluded
         } else {
-            // Non-recurring tasks only show on their creation date
             return Calendar.current.isDate(normalizedCreationDate, inSameDayAs: normalizedDate) && !isExcluded
         }
     }
     
+    /// Updates the completion status for a specific date
+    /// - Parameters:
+    ///   - completed: New completion status
+    ///   - date: The date to update
     mutating func updateCompletion(_ completed: Bool, for date: Date) {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         if completed {
@@ -60,22 +101,29 @@ struct Task: Identifiable, Hashable, Codable {
         } else {
             completedDates = completedDates.filter { !Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
+        lastModifiedDate = Date()
     }
     
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-    
-    static func == (lhs: Task, rhs: Task) -> Bool {
-        lhs.id == rhs.id
-    }
-    
-    // Get completion count for a specific date
+    /// Gets completion statistics for a specific date
+    /// - Parameter date: The date to check
+    /// - Returns: Tuple containing total and completed count
     func getCompletionCount(for date: Date) -> (total: Int, completed: Int) {
         if !isAvailableForDate(date) {
             return (0, 0)
         }
         return (1, isCompletedForDate(date) ? 1 : 0)
+    }
+}
+
+// MARK: - CustomDebugStringConvertible
+extension Task: CustomDebugStringConvertible {
+    var debugDescription: String {
+        """
+        Task(id: \(id),
+             title: \(title),
+             isRecurring: \(isRecurring),
+             completed: \(completedDates.count) times)
+        """
     }
 }
 
