@@ -76,7 +76,7 @@ struct TaskListView: View {
                 } else {
                     List {
                         // Recurring Tasks Section
-                        if !sortedTasks.recurring.isEmpty {
+                        if !sortedTasks.recurring.isEmpty || hasIgnoredTasks {
                             Section {
                                 ForEach(sortedTasks.recurring) { task in
                                     TaskRow(
