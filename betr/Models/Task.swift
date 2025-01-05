@@ -29,6 +29,9 @@ struct Task: Identifiable, Hashable, Codable {
     /// Reference to the original task if this is a recurring instance
     var originalTaskId: UUID?
     
+    /// The days this task repeats on (if it's recurring)
+    var selectedDays: Set<Weekday>
+    
     /// Creates a new task
     /// - Parameters:
     ///   - id: Unique identifier (defaults to new UUID)
@@ -40,6 +43,7 @@ struct Task: Identifiable, Hashable, Codable {
     ///   - creationDate: When task was created
     ///   - lastModifiedDate: When task was last modified
     ///   - originalTaskId: Reference to original task
+    ///   - selectedDays: The selected days for this task
     init(
         id: UUID = UUID(),
         title: String,
@@ -49,7 +53,8 @@ struct Task: Identifiable, Hashable, Codable {
         excludedDates: Set<Date> = [],
         creationDate: Date = Date(),
         lastModifiedDate: Date? = nil,
-        originalTaskId: UUID? = nil
+        originalTaskId: UUID? = nil,
+        selectedDays: Set<Weekday> = []
     ) {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             fatalError("Task title cannot be empty")
@@ -64,6 +69,7 @@ struct Task: Identifiable, Hashable, Codable {
         self.creationDate = creationDate
         self.lastModifiedDate = lastModifiedDate
         self.originalTaskId = originalTaskId
+        self.selectedDays = selectedDays
     }
     
     /// Checks if the task is completed for a specific date
@@ -78,16 +84,24 @@ struct Task: Identifiable, Hashable, Codable {
     /// - Parameter date: The date to check
     /// - Returns: Whether the task is available on that date
     func isAvailableForDate(_ date: Date) -> Bool {
-        let normalizedDate = Calendar.current.startOfDay(for: date)
-        let normalizedCreationDate = Calendar.current.startOfDay(for: creationDate)
-        let isExcluded = excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
+        let calendar = Calendar.current
+        let normalizedDate = calendar.startOfDay(for: date)
+        
+        // Check if the date is excluded
+        if excludedDates.contains(where: { calendar.isDate($0, inSameDayAs: normalizedDate) }) {
+            return false
+        }
         
         if isRecurring {
-            let isAfterCreation = Calendar.current.compare(normalizedDate, to: normalizedCreationDate, toGranularity: .day) != .orderedAscending
-            return isAfterCreation && !isExcluded
-        } else {
-            return Calendar.current.isDate(normalizedCreationDate, inSameDayAs: normalizedDate) && !isExcluded
+            // Get the weekday for the date
+            let weekday = calendar.component(.weekday, from: normalizedDate)
+            let weekdayEnum = Weekday(rawValue: weekday)!
+            
+            // Check if this weekday is selected
+            return selectedDays.contains(weekdayEnum)
         }
+        
+        return calendar.isDate(normalizedDate, inSameDayAs: creationDate)
     }
     
     /// Updates the completion status for a specific date

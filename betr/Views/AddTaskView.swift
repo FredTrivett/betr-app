@@ -8,7 +8,6 @@ struct AddTaskView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var isRecurring = false
-    @State private var selectedDays: Set<Weekday> = Set(Weekday.allCases)
     
     var body: some View {
         NavigationStack {
@@ -21,31 +20,6 @@ struct AddTaskView: View {
                 
                 Section {
                     Toggle("Make Recurring", isOn: $isRecurring)
-                    
-                    if isRecurring {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Repeat on")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            
-                            HStack(spacing: 12) {
-                                ForEach(Weekday.allCases, id: \.self) { day in
-                                    DayToggle(
-                                        day: day,
-                                        isSelected: selectedDays.contains(day),
-                                        onTap: {
-                                            if selectedDays.contains(day) {
-                                                selectedDays.remove(day)
-                                            } else {
-                                                selectedDays.insert(day)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                    }
                 }
             }
             .navigationTitle("Add Task")
@@ -68,7 +42,7 @@ struct AddTaskView: View {
                         viewModel.addTask(task)
                         dismiss()
                     }
-                    .disabled(title.isEmpty || (isRecurring && selectedDays.isEmpty))
+                    .disabled(title.isEmpty)
                 }
             }
         }

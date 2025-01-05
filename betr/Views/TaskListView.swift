@@ -190,8 +190,12 @@ struct TaskListView: View {
                 Button {
                     showManageRecurring = true
                 } label: {
-                    Image(systemName: "repeat.circle")
-                        .font(.title3)
+                    Image(systemName: "repeat")
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.gray.opacity(0.2))
+                        .clipShape(Capsule())
                 }
             }
         }

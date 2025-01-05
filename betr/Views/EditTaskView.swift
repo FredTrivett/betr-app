@@ -9,8 +9,7 @@ struct EditTaskView: View {
     
     @State private var title: String
     @State private var description: String
-    @State private var makeRecurring: Bool = false
-    @State private var selectedDays: Set<Weekday> = Set(Weekday.allCases)
+    @State private var makeRecurring = false
     
     init(task: Task, isRecurring: Bool, selectedDate: Date, viewModel: TaskListViewModel) {
         self.task = task
@@ -34,31 +33,6 @@ struct EditTaskView: View {
                 if !isRecurring {
                     Section {
                         Toggle("Make Recurring", isOn: $makeRecurring)
-                        
-                        if makeRecurring {
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("Repeat on")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                
-                                HStack(spacing: 12) {
-                                    ForEach(Weekday.allCases, id: \.self) { day in
-                                        DayToggle(
-                                            day: day,
-                                            isSelected: selectedDays.contains(day),
-                                            onTap: {
-                                                if selectedDays.contains(day) {
-                                                    selectedDays.remove(day)
-                                                } else {
-                                                    selectedDays.insert(day)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                                .padding(.vertical, 8)
-                            }
-                        }
                     }
                 }
             }
@@ -73,12 +47,7 @@ struct EditTaskView: View {
                 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") {
-                        var updatedTask = task
-                        updatedTask.title = title
-                        updatedTask.description = description
-                        
                         if makeRecurring {
-                            // Create a new recurring task
                             let recurringTask = Task(
                                 title: title,
                                 description: description,
@@ -86,16 +55,16 @@ struct EditTaskView: View {
                                 creationDate: selectedDate
                             )
                             viewModel.addTask(recurringTask)
-                            // Delete the original non-recurring task
                             viewModel.deleteTask(task)
                         } else {
-                            // Update existing task
+                            var updatedTask = task
+                            updatedTask.title = title
+                            updatedTask.description = description
                             viewModel.updateTask(updatedTask)
                         }
-                        
                         dismiss()
                     }
-                    .disabled(title.isEmpty || (makeRecurring && selectedDays.isEmpty))
+                    .disabled(title.isEmpty)
                 }
             }
         }
