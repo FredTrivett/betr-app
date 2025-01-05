@@ -9,6 +9,8 @@ struct EditTaskView: View {
     
     @State private var title: String
     @State private var description: String
+    @State private var makeRecurring: Bool = false
+    @State private var selectedDays: Set<Weekday> = Set(Weekday.allCases)
     
     init(task: Task, isRecurring: Bool, selectedDate: Date, viewModel: TaskListViewModel) {
         self.task = task
@@ -17,7 +19,7 @@ struct EditTaskView: View {
         self.viewModel = viewModel
         
         self._title = State(initialValue: task.title)
-        self._description = State(initialValue: task.description ?? "")
+        self._description = State(initialValue: task.description)
     }
     
     var body: some View {
@@ -29,10 +31,34 @@ struct EditTaskView: View {
                         .lineLimit(4...6)
                 }
                 
-                if isRecurring {
+                if !isRecurring {
                     Section {
-                        Text("This is a recurring task. Changes will affect all future occurrences.")
-                            .foregroundStyle(.secondary)
+                        Toggle("Make Recurring", isOn: $makeRecurring)
+                        
+                        if makeRecurring {
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Repeat on")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                
+                                HStack(spacing: 12) {
+                                    ForEach(Weekday.allCases, id: \.self) { day in
+                                        DayToggle(
+                                            day: day,
+                                            isSelected: selectedDays.contains(day),
+                                            onTap: {
+                                                if selectedDays.contains(day) {
+                                                    selectedDays.remove(day)
+                                                } else {
+                                                    selectedDays.insert(day)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                            }
+                        }
                     }
                 }
             }
@@ -51,14 +77,28 @@ struct EditTaskView: View {
                         updatedTask.title = title
                         updatedTask.description = description
                         
-                        viewModel.updateTask(updatedTask)
+                        if makeRecurring {
+                            // Create a new recurring task
+                            let recurringTask = Task(
+                                title: title,
+                                description: description,
+                                isRecurring: true,
+                                creationDate: selectedDate
+                            )
+                            viewModel.addTask(recurringTask)
+                            // Delete the original non-recurring task
+                            viewModel.deleteTask(task)
+                        } else {
+                            // Update existing task
+                            viewModel.updateTask(updatedTask)
+                        }
+                        
                         dismiss()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(title.isEmpty || (makeRecurring && selectedDays.isEmpty))
                 }
             }
         }
-        .presentationDetents([.medium])
     }
 }
 

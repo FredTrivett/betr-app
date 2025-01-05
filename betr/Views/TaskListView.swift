@@ -8,6 +8,7 @@ struct TaskListView: View {
     @State private var showManageRecurring = false
     @State private var showingReflection = false
     @State private var showingIgnoredTasks = false
+    @State private var selectedTaskToEdit: Task? = nil
     
     private var sortedTasks: (recurring: [Task], nonRecurring: [Task]) {
         let available = viewModel.tasks.filter { task in
@@ -128,12 +129,19 @@ struct TaskListView: View {
                                         onConfetti: {}
                                     )
                                     .padding(.vertical, 6)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
                                             viewModel.deleteTask(task, for: selectedDate)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
+                                        
+                                        Button {
+                                            selectedTaskToEdit = task
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(.orange)
                                     }
                                 }
                             }
@@ -200,6 +208,14 @@ struct TaskListView: View {
             IgnoredTasksView(
                 viewModel: viewModel,
                 date: selectedDate
+            )
+        }
+        .sheet(item: $selectedTaskToEdit) { task in
+            EditTaskView(
+                task: task,
+                isRecurring: false,
+                selectedDate: selectedDate,
+                viewModel: viewModel
             )
         }
     }
