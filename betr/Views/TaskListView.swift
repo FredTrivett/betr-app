@@ -3,6 +3,7 @@ import SwiftUI
 struct TaskListView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: TaskListViewModel
+    @StateObject private var reflectionViewModel = ReflectionHistoryViewModel()
     let selectedDate: Date
     @State private var showingAddTask = false
     @State private var showManageRecurring = false
@@ -173,15 +174,42 @@ struct TaskListView: View {
                 Button {
                     showingReflection = true
                 } label: {
-                    Text(isToday ? "Reflect on Today" : "Reflect on Yesterday")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    if let reflection = isToday ? reflectionViewModel.todayReflection : reflectionViewModel.getReflection(for: selectedDate) {
+                        VStack(alignment: .leading) {
+                            Text("Your Reflection")
+                                .font(.headline)
+                                .padding(.top, 24)
+                            HStack {
+                                Image(systemName: reflection.rating.icon)
+                                    .foregroundStyle(reflection.rating.color)
+                                Text("You did")
+                                    .foregroundStyle(.secondary)
+                                Text(reflection.rating.rawValue)
+                                    .foregroundStyle(reflection.rating.color)
+                                    .bold()
+                                Text("than yesterday")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } else {
+                        Text(isToday ? "Reflect on Today" : "Reflect on Yesterday")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(.blue)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
                 }
-                .padding()
+                .padding(.horizontal)
+                .onChange(of: showingReflection) { _, isShowing in
+                    if !isShowing {
+                        // Reload reflections immediately
+                        DispatchQueue.main.async {
+                            reflectionViewModel.loadReflections()
+                        }
+                    }
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)

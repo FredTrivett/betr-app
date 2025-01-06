@@ -36,6 +36,10 @@ struct BetterThanYesterdayView: View {
         }
     }
     
+    private var existingReflection: DailyReflection? {
+        reflectionViewModel.getReflection(for: selectedDate)
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -86,6 +90,36 @@ struct BetterThanYesterdayView: View {
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             
+                            if let reflection = existingReflection {
+                                // Show previous reflection
+                                VStack(spacing: 8) {
+                                    Text("Your Previous Reflection")
+                                        .font(.headline)
+                                    
+                                    HStack(spacing: 16) {
+                                        Image(systemName: reflection.rating.icon)
+                                            .font(.title)
+                                            .foregroundStyle(reflection.rating.color)
+                                        
+                                        Text("You felt you did")
+                                            .foregroundStyle(.secondary)
+                                        Text(reflection.rating.rawValue)
+                                            .foregroundStyle(reflection.rating.color)
+                                            .bold()
+                                        Text("than yesterday")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Text("Tap below to update")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                            
                             Spacer(minLength: 100)
                         }
                     }
@@ -97,25 +131,25 @@ struct BetterThanYesterdayView: View {
                     VStack {
                         Spacer()
                         VStack(spacing: 12) {
-                            Text("Did you do better than yesterday?")
+                            Text(existingReflection != nil ? "Update your reflection" : "Did you do better than yesterday?")
                                 .font(.headline)
                             
                             HStack(spacing: 16) {
                                 RatingButton(
                                     rating: .better,
-                                    isSelected: selectedRating == .better,
+                                    isSelected: selectedRating == .better || existingReflection?.rating == .better,
                                     action: { submitReflection(.better, stats: comparison.currentStats) }
                                 )
                                 
                                 RatingButton(
                                     rating: .same,
-                                    isSelected: selectedRating == .same,
+                                    isSelected: selectedRating == .same || existingReflection?.rating == .same,
                                     action: { submitReflection(.same, stats: comparison.currentStats) }
                                 )
                                 
                                 RatingButton(
                                     rating: .worse,
-                                    isSelected: selectedRating == .worse,
+                                    isSelected: selectedRating == .worse || existingReflection?.rating == .worse,
                                     action: { submitReflection(.worse, stats: comparison.currentStats) }
                                 )
                             }
