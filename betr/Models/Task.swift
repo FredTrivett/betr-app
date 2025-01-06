@@ -98,19 +98,27 @@ struct Task: Identifiable, Hashable, Codable {
             return false
         }
         
+        // For recurring tasks
         if isRecurring {
-            // If we have an effective date and this date is before it,
-            // use the historical task configuration
-            if let effectiveDate = effectiveDate, 
+            // Don't show task for dates before its creation
+            if calendar.compare(normalizedDate, to: creationDate, toGranularity: .day) == .orderedAscending {
+                return false
+            }
+            
+            // If we have an effective date (task was modified) and this date is before it,
+            // use the original configuration (before the change)
+            if let effectiveDate = effectiveDate,
                calendar.compare(date, to: effectiveDate, toGranularity: .day) == .orderedAscending {
-                // For past dates, check if it was originally scheduled for this day
-                return true
+                // For past dates, check if it was completed on this date
+                // If it was completed, it means it was available on this date in the past
+                return completedDates.contains { calendar.isDate($0, inSameDayAs: normalizedDate) }
             }
             
             // For current and future dates, use the new configuration
             return selectedDays.contains(date.weekday)
         }
         
+        // For non-recurring tasks, show only on creation date
         return calendar.isDate(normalizedDate, inSameDayAs: creationDate)
     }
     
