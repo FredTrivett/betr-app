@@ -190,7 +190,11 @@ struct TaskListView: View {
                                 Text("than yesterday")
                                     .foregroundStyle(.secondary)
                             }
+                            .padding(.bottom, 6)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     } else {
                         Text(isToday ? "Reflect on Today" : "Reflect on Yesterday")
                             .font(.headline)
