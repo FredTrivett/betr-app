@@ -29,10 +29,20 @@ struct AddTaskView: View {
                 if showToggle {
                     Section {
                         Toggle("Make Recurring", isOn: $isRecurring)
+                        
+                        if isRecurring {
+                            HStack {
+                                ForEach(Weekday.sortedCases, id: \.self) { day in
+                                    DayToggle(
+                                        day: day,
+                                        isSelected: selectedDays.contains(day),
+                                        onTap: { toggleDay(day) }
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-                
-                if isRecurring || !showToggle {
+                } else {
                     Section(header: Text("Selected days")) {
                         HStack {
                             ForEach(Weekday.sortedCases, id: \.self) { day in
