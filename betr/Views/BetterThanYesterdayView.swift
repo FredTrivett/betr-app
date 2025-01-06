@@ -8,6 +8,7 @@ struct BetterThanYesterdayView: View {
     @State private var selectedRating: ReflectionRating?
     @State private var showingFeedback = false
     @State private var shouldDismissToRoot = false
+    @State private var currentStats: (total: Int, completed: Int)?
     let selectedDate: Date
     
     private var canReflect: Bool {
@@ -149,23 +150,24 @@ struct BetterThanYesterdayView: View {
                 }
             }
             .sheet(isPresented: $showingFeedback) {
-                if shouldDismissToRoot {
-                    dismiss()
-                }
-            } content: {
-                if let rating = selectedRating, let comparison = comparison {
+                if let rating = selectedRating, let stats = currentStats {
                     ReflectionFeedbackView(
                         rating: rating,
-                        stats: comparison.currentStats,
-                        shouldDismissToRoot: $shouldDismissToRoot
+                        stats: stats,
+                        dismiss: {
+                            showingFeedback = false
+                            shouldDismissToRoot = true
+                            dismiss()
+                        }
                     )
                 }
             }
         }
     }
     
-    private func submitReflection(_ rating: ReflectionRating, stats: (completed: Int, total: Int)) {
+    private func submitReflection(_ rating: ReflectionRating, stats: (total: Int, completed: Int)) {
         selectedRating = rating
+        currentStats = stats
         reflectionViewModel.addReflection(rating, stats: stats, for: selectedDate)
         showingFeedback = true
     }
