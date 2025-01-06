@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BetterThanYesterdayView: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) var presentationMode
     @ObservedObject var viewModel: TaskListViewModel
     @StateObject private var reflectionViewModel = ReflectionHistoryViewModel()
     @State private var showingMessage = false
@@ -145,7 +145,7 @@ struct BetterThanYesterdayView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") {
-                        dismiss()
+                        presentationMode.wrappedValue.dismiss()
                     }
                 }
             }
@@ -155,9 +155,7 @@ struct BetterThanYesterdayView: View {
                         rating: rating,
                         stats: stats,
                         dismiss: {
-                            showingFeedback = false
-                            shouldDismissToRoot = true
-                            dismiss()
+                            presentationMode.wrappedValue.dismiss()
                         }
                     )
                 }
