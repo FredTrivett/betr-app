@@ -6,64 +6,52 @@ struct ManageRecurringTasksView: View {
     @State private var isAddingTask = false
     @State private var selectedTask: Task? = nil
     
-    private var recurringTasks: [Task] {
-        viewModel.tasks.filter { $0.isRecurring }
-    }
-    
     var body: some View {
-        NavigationStack {
-            VStack {
-                if recurringTasks.isEmpty {
+        NavigationView {
+            Group {
+                if viewModel.recurringTasks.isEmpty {
                     ContentUnavailableView(
                         "No Recurring Tasks",
                         systemImage: "repeat.circle",
-                        description: Text("Add a recurring task using the button below")
+                        description: Text("Add a recurring task using the + button")
                     )
                 } else {
                     List {
-                        ForEach(recurringTasks) { task in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(task.title)
-                                        .foregroundStyle(.primary)
-                                    if !task.description.isEmpty {
-                                        Text(task.description)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                        ForEach(viewModel.recurringTasks) { task in
+                            VStack(alignment: .leading) {
+                                Text(task.title)
+                                    .font(.headline)
+                                if !task.description.isEmpty {
+                                    Text(task.description)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                HStack {
+                                    ForEach(Weekday.sortedCases, id: \.self) { day in
+                                        DayIndicator(
+                                            day: day,
+                                            isSelected: task.selectedDays.contains(day)
+                                        )
                                     }
                                 }
-                                Spacer()
-                                Image(systemName: "repeat.circle")
-                                    .foregroundStyle(.secondary)
                             }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedTask = task
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     viewModel.deleteTask(task)
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                
+                                Button {
+                                    selectedTask = task
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.blue)
                             }
                         }
                     }
                 }
-                
-                // Add New Recurring Task button at bottom
-                Button {
-                    isAddingTask = true
-                } label: {
-                    Text("New Recurring Task")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding()
             }
             .navigationTitle("Recurring Tasks")
             .navigationBarTitleDisplayMode(.inline)
@@ -73,14 +61,40 @@ struct ManageRecurringTasksView: View {
                         dismiss()
                     }
                 }
-            }
-            .sheet(isPresented: $isAddingTask) {
-                AddTaskView(viewModel: viewModel, selectedDate: Date(), showToggle: false)
-            }
-            .sheet(item: $selectedTask) { task in
-                AddRecurringTaskView(viewModel: viewModel, taskToEdit: task)
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        isAddingTask = true
+                    }) {
+                        Image(systemName: "plus")
+                    }
+                }
             }
         }
+        .sheet(isPresented: $isAddingTask) {
+            AddTaskView(viewModel: viewModel, selectedDate: Date(), showToggle: false)
+        }
+        .sheet(item: $selectedTask) { task in
+            EditTaskView(
+                viewModel: viewModel,
+                task: task
+            )
+        }
+    }
+}
+
+struct DayIndicator: View {
+    let day: Weekday
+    let isSelected: Bool
+    
+    var body: some View {
+        Text(day.dayLetter)
+            .font(.caption)
+            .padding(6)
+            .frame(width: 24, height: 24)
+            .background(isSelected ? .blue.opacity(0.2) : .clear)
+            .clipShape(Circle())
+            .foregroundStyle(isSelected ? .blue : .secondary)
     }
 }
 

@@ -174,6 +174,10 @@ class TaskListViewModel: ObservableObject {
             task.isRecurring && task.excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
     }
+    
+    var recurringTasks: [Task] {
+        tasks.filter { $0.isRecurring }
+    }
 }
 
 // Add this struct to represent progress comparison
