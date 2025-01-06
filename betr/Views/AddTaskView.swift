@@ -8,6 +8,7 @@ struct AddTaskView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var isRecurring = false
+    @State private var selectedDays = Set(Weekday.allCases)
     
     var body: some View {
         NavigationStack {
@@ -20,6 +21,18 @@ struct AddTaskView: View {
                 
                 Section {
                     Toggle("Make Recurring", isOn: $isRecurring)
+                    
+                    if isRecurring {
+                        HStack {
+                            ForEach(Weekday.sortedCases, id: \.self) { day in
+                                DayToggle(
+                                    day: day,
+                                    isSelected: selectedDays.contains(day),
+                                    onTap: { toggleDay(day) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Add Task")
@@ -34,16 +47,31 @@ struct AddTaskView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add") {
                         let task = Task(
+                            id: UUID(),
                             title: title,
                             description: description,
                             isRecurring: isRecurring,
-                            creationDate: selectedDate
+                            creationDate: selectedDate,
+                            originalTaskId: nil,
+                            selectedDays: selectedDays
                         )
                         viewModel.addTask(task)
                         dismiss()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(title.isEmpty || (isRecurring && selectedDays.isEmpty))
                 }
+            }
+        }
+    }
+    
+    private func toggleDay(_ day: Weekday) {
+        if selectedDays.count == Weekday.allCases.count {
+            selectedDays = [day]
+        } else {
+            if selectedDays.contains(day) {
+                selectedDays.remove(day)
+            } else {
+                selectedDays.insert(day)
             }
         }
     }

@@ -3,7 +3,7 @@ import Foundation
 /// Represents a task that can be either one-time or recurring
 struct Task: Identifiable, Hashable, Codable {
     /// Unique identifier for the task
-    let id: UUID
+    var id: UUID
     
     /// The title of the task
     var title: String
@@ -12,7 +12,7 @@ struct Task: Identifiable, Hashable, Codable {
     var description: String
     
     /// Indicates whether this task repeats
-    let isRecurring: Bool
+    var isRecurring: Bool
     
     /// Dates when this task was completed
     var completedDates: Set<Date>
@@ -30,7 +30,7 @@ struct Task: Identifiable, Hashable, Codable {
     var originalTaskId: UUID?
     
     /// The days this task repeats on (if it's recurring)
-    var selectedDays: Set<Weekday>
+    var selectedDays: Set<Weekday> = []
     
     /// Creates a new task
     /// - Parameters:
@@ -185,5 +185,9 @@ enum Weekday: Int, Codable, Hashable, CaseIterable {
         case .saturday: return "S"
         case .sunday: return "S"
         }
+    }
+    
+    static var sortedCases: [Weekday] {
+        return [.monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday]
     }
 }

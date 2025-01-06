@@ -10,16 +10,18 @@ struct DayToggle: View {
             ZStack {
                 Circle()
                     .fill(isSelected ? Color.blue : Color.clear)
+                    .aspectRatio(1, contentMode: .fit)
                     .overlay(
                         Circle()
-                            .strokeBorder(Color.blue, lineWidth: 1)
+                            .stroke(Color.blue, lineWidth: 1)
                     )
                 
                 Text(day.singleLetter)
-                    .font(.system(.callout, design: .rounded, weight: .medium))
-                    .foregroundStyle(isSelected ? .white : .blue)
+                    .font(.system(.callout, design: .rounded))
+                    .foregroundColor(isSelected ? .white : .blue)
             }
-            .frame(width: 36, height: 36)
         }
+        .buttonStyle(PlainButtonStyle())
+        .contentShape(Circle())
     }
 } 
