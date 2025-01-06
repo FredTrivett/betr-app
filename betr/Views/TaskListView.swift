@@ -216,10 +216,8 @@ struct TaskListView: View {
         }
         .sheet(item: $selectedTaskToEdit) { task in
             EditTaskView(
-                task: task,
-                isRecurring: false,
-                selectedDate: selectedDate,
-                viewModel: viewModel
+                viewModel: viewModel,
+                task: task
             )
         }
     }
