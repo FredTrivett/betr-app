@@ -75,7 +75,7 @@ struct ManageRecurringTasksView: View {
                 }
             }
             .sheet(isPresented: $isAddingTask) {
-                AddTaskView(viewModel: viewModel, selectedDate: Date())
+                AddTaskView(viewModel: viewModel, selectedDate: Date(), showToggle: false)
             }
             .sheet(item: $selectedTask) { task in
                 AddRecurringTaskView(viewModel: viewModel, taskToEdit: task)

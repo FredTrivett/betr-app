@@ -4,11 +4,18 @@ struct AddTaskView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: TaskListViewModel
     let selectedDate: Date
+    let showToggle: Bool
     
     @State private var title = ""
     @State private var description = ""
     @State private var isRecurring = false
     @State private var selectedDays = Set(Weekday.allCases)
+    
+    init(viewModel: TaskListViewModel, selectedDate: Date, showToggle: Bool) {
+        self.viewModel = viewModel
+        self.selectedDate = selectedDate
+        self.showToggle = showToggle
+    }
     
     var body: some View {
         NavigationStack {
@@ -19,10 +26,14 @@ struct AddTaskView: View {
                         .lineLimit(4...6)
                 }
                 
-                Section {
-                    Toggle("Make Recurring", isOn: $isRecurring)
-                    
-                    if isRecurring {
+                if showToggle {
+                    Section {
+                        Toggle("Make Recurring", isOn: $isRecurring)
+                    }
+                }
+                
+                if isRecurring || !showToggle {
+                    Section(header: Text("Selected days")) {
                         HStack {
                             ForEach(Weekday.sortedCases, id: \.self) { day in
                                 DayToggle(
@@ -80,6 +91,7 @@ struct AddTaskView: View {
 #Preview {
     AddTaskView(
         viewModel: TaskListViewModel(),
-        selectedDate: Date()
+        selectedDate: Date(),
+        showToggle: true
     )
 } 

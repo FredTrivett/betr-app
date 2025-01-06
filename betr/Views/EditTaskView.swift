@@ -32,22 +32,14 @@ struct EditTaskView: View {
                         .lineLimit(4...6)
                 }
                 
-                if !isRecurring {
-                    Section {
-                        Toggle("Make Recurring", isOn: $makeRecurring)
-                    }
-                }
-                
-                if isRecurring {
-                    Section {
-                        HStack {
-                            ForEach(Weekday.sortedCases, id: \.self) { day in
-                                DayToggle(
-                                    day: day,
-                                    isSelected: selectedDays.contains(day),
-                                    onTap: { toggleDay(day) }
-                                )
-                            }
+                Section(header: Text("Selected days")) {
+                    HStack {
+                        ForEach(Weekday.sortedCases, id: \.self) { day in
+                            DayToggle(
+                                day: day,
+                                isSelected: selectedDays.contains(day),
+                                onTap: { toggleDay(day) }
+                            )
                         }
                     }
                 }

@@ -200,7 +200,7 @@ struct TaskListView: View {
             }
         }
         .sheet(isPresented: $showingAddTask) {
-            AddTaskView(viewModel: viewModel, selectedDate: selectedDate)
+            AddTaskView(viewModel: viewModel, selectedDate: selectedDate, showToggle: true)
         }
         .sheet(isPresented: $showManageRecurring) {
             ManageRecurringTasksView(viewModel: viewModel)
