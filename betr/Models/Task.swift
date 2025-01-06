@@ -1,16 +1,49 @@
 import Foundation
 
+/// Represents a task that can be either one-time or recurring
 struct Task: Identifiable, Hashable, Codable {
-    let id: UUID
-    var title: String
-    var description: String
-    var isRecurring: Bool
-    var completedDates: Set<Date>
-    var excludedDates: Set<Date>
-    var creationDate: Date
-    var lastModifiedDate: Date?
-    var originalTaskId: UUID?  // To track which recurring task this was created from
+    /// Unique identifier for the task
+    var id: UUID
     
+    /// The title of the task
+    var title: String
+    
+    /// Optional description providing more details about the task
+    var description: String
+    
+    /// Indicates whether this task repeats
+    var isRecurring: Bool
+    
+    /// Dates when this task was completed
+    var completedDates: Set<Date>
+    
+    /// Dates when this recurring task was excluded
+    var excludedDates: Set<Date>
+    
+    /// The date when this task was created
+    var creationDate: Date
+    
+    /// The date when this task was last modified
+    var lastModifiedDate: Date?
+    
+    /// Reference to the original task if this is a recurring instance
+    var originalTaskId: UUID?
+    
+    /// The days this task repeats on (if it's recurring)
+    var selectedDays: Set<Weekday> = []
+    
+    /// Creates a new task
+    /// - Parameters:
+    ///   - id: Unique identifier (defaults to new UUID)
+    ///   - title: Task title
+    ///   - description: Optional task description
+    ///   - isRecurring: Whether task repeats
+    ///   - completedDates: Set of completion dates
+    ///   - excludedDates: Set of exclusion dates
+    ///   - creationDate: When task was created
+    ///   - lastModifiedDate: When task was last modified
+    ///   - originalTaskId: Reference to original task
+    ///   - selectedDays: The selected days for this task
     init(
         id: UUID = UUID(),
         title: String,
@@ -20,8 +53,13 @@ struct Task: Identifiable, Hashable, Codable {
         excludedDates: Set<Date> = [],
         creationDate: Date = Date(),
         lastModifiedDate: Date? = nil,
-        originalTaskId: UUID? = nil
+        originalTaskId: UUID? = nil,
+        selectedDays: Set<Weekday> = []
     ) {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            fatalError("Task title cannot be empty")
+        }
+        
         self.id = id
         self.title = title
         self.description = description
@@ -31,28 +69,45 @@ struct Task: Identifiable, Hashable, Codable {
         self.creationDate = creationDate
         self.lastModifiedDate = lastModifiedDate
         self.originalTaskId = originalTaskId
+        self.selectedDays = selectedDays
     }
     
+    /// Checks if the task is completed for a specific date
+    /// - Parameter date: The date to check
+    /// - Returns: Whether the task is completed on that date
     func isCompletedForDate(_ date: Date) -> Bool {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         return completedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
     }
     
+    /// Checks if the task is available for a specific date
+    /// - Parameter date: The date to check
+    /// - Returns: Whether the task is available on that date
     func isAvailableForDate(_ date: Date) -> Bool {
-        let normalizedDate = Calendar.current.startOfDay(for: date)
-        let normalizedCreationDate = Calendar.current.startOfDay(for: creationDate)
-        let isExcluded = excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
+        let calendar = Calendar.current
+        let normalizedDate = calendar.startOfDay(for: date)
+        
+        // Check if the date is excluded
+        if excludedDates.contains(where: { calendar.isDate($0, inSameDayAs: normalizedDate) }) {
+            return false
+        }
         
         if isRecurring {
-            // For recurring tasks, show on or after creation date
-            let isAfterCreation = Calendar.current.compare(normalizedDate, to: normalizedCreationDate, toGranularity: .day) != .orderedAscending
-            return isAfterCreation && !isExcluded
-        } else {
-            // Non-recurring tasks only show on their creation date
-            return Calendar.current.isDate(normalizedCreationDate, inSameDayAs: normalizedDate) && !isExcluded
+            // Get the weekday for the date
+            let weekday = calendar.component(.weekday, from: normalizedDate)
+            let weekdayEnum = Weekday(rawValue: weekday)!
+            
+            // Check if this weekday is selected
+            return selectedDays.contains(weekdayEnum)
         }
+        
+        return calendar.isDate(normalizedDate, inSameDayAs: creationDate)
     }
     
+    /// Updates the completion status for a specific date
+    /// - Parameters:
+    ///   - completed: New completion status
+    ///   - date: The date to update
     mutating func updateCompletion(_ completed: Bool, for date: Date) {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         if completed {
@@ -60,22 +115,29 @@ struct Task: Identifiable, Hashable, Codable {
         } else {
             completedDates = completedDates.filter { !Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
+        lastModifiedDate = Date()
     }
     
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-    
-    static func == (lhs: Task, rhs: Task) -> Bool {
-        lhs.id == rhs.id
-    }
-    
-    // Get completion count for a specific date
+    /// Gets completion statistics for a specific date
+    /// - Parameter date: The date to check
+    /// - Returns: Tuple containing total and completed count
     func getCompletionCount(for date: Date) -> (total: Int, completed: Int) {
         if !isAvailableForDate(date) {
             return (0, 0)
         }
         return (1, isCompletedForDate(date) ? 1 : 0)
+    }
+}
+
+// MARK: - CustomDebugStringConvertible
+extension Task: CustomDebugStringConvertible {
+    var debugDescription: String {
+        """
+        Task(id: \(id),
+             title: \(title),
+             isRecurring: \(isRecurring),
+             completed: \(completedDates.count) times)
+        """
     }
 }
 
@@ -123,5 +185,9 @@ enum Weekday: Int, Codable, Hashable, CaseIterable {
         case .saturday: return "S"
         case .sunday: return "S"
         }
+    }
+    
+    static var sortedCases: [Weekday] {
+        return [.monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday]
     }
 }

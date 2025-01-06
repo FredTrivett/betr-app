@@ -8,6 +8,7 @@ struct TaskListView: View {
     @State private var showManageRecurring = false
     @State private var showingReflection = false
     @State private var showingIgnoredTasks = false
+    @State private var selectedTaskToEdit: Task? = nil
     
     private var sortedTasks: (recurring: [Task], nonRecurring: [Task]) {
         let available = viewModel.tasks.filter { task in
@@ -76,7 +77,7 @@ struct TaskListView: View {
                 } else {
                     List {
                         // Recurring Tasks Section
-                        if !sortedTasks.recurring.isEmpty {
+                        if !sortedTasks.recurring.isEmpty || hasIgnoredTasks {
                             Section {
                                 ForEach(sortedTasks.recurring) { task in
                                     TaskRow(
@@ -128,12 +129,19 @@ struct TaskListView: View {
                                         onConfetti: {}
                                     )
                                     .padding(.vertical, 6)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
                                             viewModel.deleteTask(task, for: selectedDate)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
+                                        
+                                        Button {
+                                            selectedTaskToEdit = task
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(.orange)
                                     }
                                 }
                             }
@@ -182,13 +190,17 @@ struct TaskListView: View {
                 Button {
                     showManageRecurring = true
                 } label: {
-                    Image(systemName: "repeat.circle")
-                        .font(.title3)
+                    Image(systemName: "repeat")
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.gray.opacity(0.2))
+                        .clipShape(Capsule())
                 }
             }
         }
         .sheet(isPresented: $showingAddTask) {
-            AddTaskView(viewModel: viewModel, selectedDate: selectedDate)
+            AddTaskView(viewModel: viewModel, selectedDate: selectedDate, showToggle: true)
         }
         .sheet(isPresented: $showManageRecurring) {
             ManageRecurringTasksView(viewModel: viewModel)
@@ -200,6 +212,14 @@ struct TaskListView: View {
             IgnoredTasksView(
                 viewModel: viewModel,
                 date: selectedDate
+            )
+        }
+        .sheet(item: $selectedTaskToEdit) { task in
+            EditTaskView(
+                task: task,
+                isRecurring: false,
+                selectedDate: selectedDate,
+                viewModel: viewModel
             )
         }
     }

@@ -33,7 +33,6 @@ struct IgnoredTasksView: View {
                     }
                 }
                 
-                // Add Recurring Task button at bottom
                 Button {
                     showingAddTask = true
                 } label: {
@@ -55,10 +54,18 @@ struct IgnoredTasksView: View {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingAddTask = true
+                    }) {
+                        Image(systemName: "plus")
+                    }
+                }
             }
         }
         .sheet(isPresented: $showingAddTask) {
-            AddTaskView(viewModel: viewModel, selectedDate: date)
+            AddTaskView(viewModel: viewModel, selectedDate: date, showToggle: false)
         }
     }
 } 

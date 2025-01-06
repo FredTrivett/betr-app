@@ -4,11 +4,18 @@ struct AddTaskView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: TaskListViewModel
     let selectedDate: Date
+    let showToggle: Bool
     
     @State private var title = ""
     @State private var description = ""
     @State private var isRecurring = false
-    @State private var selectedDays: Set<Weekday> = Set(Weekday.allCases)
+    @State private var selectedDays = Set(Weekday.allCases)
+    
+    init(viewModel: TaskListViewModel, selectedDate: Date, showToggle: Bool) {
+        self.viewModel = viewModel
+        self.selectedDate = selectedDate
+        self.showToggle = showToggle
+    }
     
     var body: some View {
         NavigationStack {
@@ -19,31 +26,22 @@ struct AddTaskView: View {
                         .lineLimit(4...6)
                 }
                 
-                Section {
-                    Toggle("Make Recurring", isOn: $isRecurring)
-                    
-                    if isRecurring {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Repeat on")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            
-                            HStack(spacing: 12) {
-                                ForEach(Weekday.allCases, id: \.self) { day in
-                                    DayToggle(
-                                        day: day,
-                                        isSelected: selectedDays.contains(day),
-                                        onTap: {
-                                            if selectedDays.contains(day) {
-                                                selectedDays.remove(day)
-                                            } else {
-                                                selectedDays.insert(day)
-                                            }
-                                        }
-                                    )
-                                }
+                if showToggle {
+                    Section {
+                        Toggle("Make Recurring", isOn: $isRecurring)
+                    }
+                }
+                
+                if isRecurring || !showToggle {
+                    Section(header: Text("Selected days")) {
+                        HStack {
+                            ForEach(Weekday.sortedCases, id: \.self) { day in
+                                DayToggle(
+                                    day: day,
+                                    isSelected: selectedDays.contains(day),
+                                    onTap: { toggleDay(day) }
+                                )
                             }
-                            .padding(.vertical, 8)
                         }
                     }
                 }
@@ -60,10 +58,13 @@ struct AddTaskView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add") {
                         let task = Task(
+                            id: UUID(),
                             title: title,
                             description: description,
                             isRecurring: isRecurring,
-                            creationDate: selectedDate
+                            creationDate: selectedDate,
+                            originalTaskId: nil,
+                            selectedDays: selectedDays
                         )
                         viewModel.addTask(task)
                         dismiss()
@@ -73,11 +74,24 @@ struct AddTaskView: View {
             }
         }
     }
+    
+    private func toggleDay(_ day: Weekday) {
+        if selectedDays.count == Weekday.allCases.count {
+            selectedDays = [day]
+        } else {
+            if selectedDays.contains(day) {
+                selectedDays.remove(day)
+            } else {
+                selectedDays.insert(day)
+            }
+        }
+    }
 }
 
 #Preview {
     AddTaskView(
         viewModel: TaskListViewModel(),
-        selectedDate: Date()
+        selectedDate: Date(),
+        showToggle: true
     )
 } 

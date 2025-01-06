@@ -13,6 +13,10 @@ struct DailyReflection: Identifiable, Codable, Equatable {
          rating: ReflectionRating,
          tasksCompleted: Int,
          totalTasks: Int) {
+        guard tasksCompleted <= totalTasks else {
+            fatalError("Completed tasks cannot exceed total tasks")
+        }
+        
         self.id = id
         self.date = date
         self.rating = rating
@@ -22,6 +26,11 @@ struct DailyReflection: Identifiable, Codable, Equatable {
     
     static func == (lhs: DailyReflection, rhs: DailyReflection) -> Bool {
         lhs.id == rhs.id
+    }
+    
+    var completionPercentage: Double {
+        guard totalTasks > 0 else { return 0 }
+        return Double(tasksCompleted) / Double(totalTasks) * 100
     }
 }
 
