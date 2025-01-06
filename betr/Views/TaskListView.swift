@@ -141,7 +141,7 @@ struct TaskListView: View {
                                         } label: {
                                             Label("Edit", systemImage: "pencil")
                                         }
-                                        .tint(.orange)
+                                        .tint(.blue)
                                     }
                                 }
                             }
@@ -194,7 +194,7 @@ struct TaskListView: View {
                         .font(.subheadline)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.gray.opacity(0.2))
+                        .background(Color.gray.opacity(0.1))
                         .clipShape(Capsule())
                 }
             }
