@@ -89,25 +89,34 @@ class TaskListViewModel: ObservableObject {
         )
     }
     
-    func updateTask(_ task: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            var updatedTask = task
-            if task.isRecurring {
-                // For recurring tasks, set lastModifiedDate to today
-                updatedTask.lastModifiedDate = Calendar.current.startOfDay(for: Date())
+    func updateTask(_ updatedTask: Task, preserveHistoryBefore date: Date? = nil) {
+        if let preserveDate = date, updatedTask.isRecurring {
+            if let historicalTask = tasks.first(where: { $0.id == updatedTask.id }) {
+                let hybridTask = Task(
+                    id: updatedTask.id,
+                    title: updatedTask.title,
+                    description: updatedTask.description,
+                    isRecurring: true,
+                    completedDates: historicalTask.completedDates,
+                    excludedDates: historicalTask.excludedDates,
+                    creationDate: historicalTask.creationDate,
+                    lastModifiedDate: date,
+                    originalTaskId: historicalTask.originalTaskId,
+                    selectedDays: updatedTask.selectedDays,
+                    effectiveDate: preserveDate
+                )
                 
-                // Get the original task
-                let originalTask = tasks[index]
-                
-                // Preserve completion dates for past dates
-                let today = Calendar.current.startOfDay(for: Date())
-                updatedTask.completedDates = originalTask.completedDates.filter { date in
-                    Calendar.current.compare(date, to: today, toGranularity: .day) == .orderedAscending
+                if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
+                    tasks[index] = hybridTask
                 }
             }
-            tasks[index] = updatedTask
-            saveTasks()
+        } else {
+            if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
+                tasks[index] = updatedTask
+            }
         }
+        
+        saveTasks()
     }
     
     func completedTasksCount(for date: Date) -> Int {

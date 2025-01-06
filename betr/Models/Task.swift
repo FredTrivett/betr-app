@@ -32,6 +32,9 @@ struct Task: Identifiable, Hashable, Codable {
     /// The days this task repeats on (if it's recurring)
     var selectedDays: Set<Weekday> = []
     
+    /// The effective date for this task
+    var effectiveDate: Date?
+    
     /// Creates a new task
     /// - Parameters:
     ///   - id: Unique identifier (defaults to new UUID)
@@ -44,6 +47,7 @@ struct Task: Identifiable, Hashable, Codable {
     ///   - lastModifiedDate: When task was last modified
     ///   - originalTaskId: Reference to original task
     ///   - selectedDays: The selected days for this task
+    ///   - effectiveDate: The effective date for this task
     init(
         id: UUID = UUID(),
         title: String,
@@ -54,7 +58,8 @@ struct Task: Identifiable, Hashable, Codable {
         creationDate: Date = Date(),
         lastModifiedDate: Date? = nil,
         originalTaskId: UUID? = nil,
-        selectedDays: Set<Weekday> = []
+        selectedDays: Set<Weekday> = [],
+        effectiveDate: Date? = nil
     ) {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             fatalError("Task title cannot be empty")
@@ -70,6 +75,7 @@ struct Task: Identifiable, Hashable, Codable {
         self.lastModifiedDate = lastModifiedDate
         self.originalTaskId = originalTaskId
         self.selectedDays = selectedDays
+        self.effectiveDate = effectiveDate
     }
     
     /// Checks if the task is completed for a specific date
@@ -93,12 +99,16 @@ struct Task: Identifiable, Hashable, Codable {
         }
         
         if isRecurring {
-            // Get the weekday for the date
-            let weekday = calendar.component(.weekday, from: normalizedDate)
-            let weekdayEnum = Weekday(rawValue: weekday)!
+            // If we have an effective date and this date is before it,
+            // use the historical task configuration
+            if let effectiveDate = effectiveDate, 
+               calendar.compare(date, to: effectiveDate, toGranularity: .day) == .orderedAscending {
+                // For past dates, check if it was originally scheduled for this day
+                return true
+            }
             
-            // Check if this weekday is selected
-            return selectedDays.contains(weekdayEnum)
+            // For current and future dates, use the new configuration
+            return selectedDays.contains(date.weekday)
         }
         
         return calendar.isDate(normalizedDate, inSameDayAs: creationDate)
@@ -189,5 +199,14 @@ enum Weekday: Int, Codable, Hashable, CaseIterable {
     
     static var sortedCases: [Weekday] {
         return [.monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday]
+    }
+}
+
+// Add this extension to get weekday from Date
+extension Date {
+    var weekday: Weekday {
+        let calendar = Calendar.current
+        let weekdayNumber = calendar.component(.weekday, from: self)
+        return Weekday(rawValue: weekdayNumber)!
     }
 }

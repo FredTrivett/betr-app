@@ -7,7 +7,6 @@ struct EditTaskView: View {
     
     @State private var title: String
     @State private var description: String
-    @State private var isRecurring: Bool
     @State private var selectedDays: Set<Weekday>
     
     init(viewModel: TaskListViewModel, task: Task) {
@@ -15,32 +14,26 @@ struct EditTaskView: View {
         self.task = task
         _title = State(initialValue: task.title)
         _description = State(initialValue: task.description)
-        _isRecurring = State(initialValue: task.isRecurring)
         _selectedDays = State(initialValue: task.selectedDays)
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationView {
             Form {
                 Section {
-                    TextField("Task Title", text: $title)
-                    TextField("Description", text: $description, axis: .vertical)
-                        .lineLimit(4...6)
+                    TextField("Title", text: $title)
+                    TextField("Description", text: $description)
                 }
                 
-                if !task.isRecurring {
-                    Section {
-                        Toggle("Make Recurring", isOn: $isRecurring)
-                        
-                        if isRecurring {
-                            HStack {
-                                ForEach(Weekday.sortedCases, id: \.self) { day in
-                                    DayToggle(
-                                        day: day,
-                                        isSelected: selectedDays.contains(day),
-                                        onTap: { toggleDay(day) }
-                                    )
-                                }
+                if task.isRecurring {
+                    Section(header: Text("Recurring Days")) {
+                        HStack {
+                            ForEach(Weekday.sortedCases, id: \.self) { day in
+                                DayToggle(
+                                    day: day,
+                                    isSelected: selectedDays.contains(day),
+                                    onTap: { toggleDay(day) }
+                                )
                             }
                         }
                     }
@@ -57,19 +50,8 @@ struct EditTaskView: View {
                 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") {
-                        let updatedTask = Task(
-                            id: task.id,
-                            title: title,
-                            description: description,
-                            isRecurring: isRecurring,
-                            creationDate: task.creationDate,
-                            originalTaskId: task.originalTaskId,
-                            selectedDays: selectedDays
-                        )
-                        viewModel.updateTask(updatedTask)
-                        dismiss()
+                        saveTask()
                     }
-                    .disabled(title.isEmpty || (isRecurring && selectedDays.isEmpty))
                 }
             }
         }
@@ -81,6 +63,26 @@ struct EditTaskView: View {
         } else {
             selectedDays.insert(day)
         }
+    }
+    
+    private func saveTask() {
+        let currentDate = Date()
+        let updatedTask = Task(
+            id: task.id,
+            title: title,
+            description: description,
+            isRecurring: task.isRecurring,
+            completedDates: task.completedDates,
+            excludedDates: task.excludedDates,
+            creationDate: task.creationDate,
+            lastModifiedDate: currentDate,
+            originalTaskId: task.originalTaskId,
+            selectedDays: selectedDays,
+            effectiveDate: currentDate
+        )
+        
+        viewModel.updateTask(updatedTask, preserveHistoryBefore: currentDate)
+        dismiss()
     }
 }
 
