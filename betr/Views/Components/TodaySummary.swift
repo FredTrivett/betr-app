@@ -6,9 +6,18 @@ struct TodaySummary: View {
     let totalTasks: Int
     let onTap: () -> Void
     @ObservedObject var viewModel: TaskListViewModel
+    @ObservedObject var reflectionViewModel: ReflectionHistoryViewModel
+    
+    @State private var showingReflection = false
     
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            if reflection != nil {
+                showingReflection = true
+            } else {
+                onTap()
+            }
+        }) {
             VStack(spacing: 16) {
                 // Progress section
                 HStack {
@@ -98,6 +107,14 @@ struct TodaySummary: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
+        .sheet(isPresented: $showingReflection) {
+            BetterThanYesterdayView(viewModel: viewModel, selectedDate: Date())
+        }
+        .onChange(of: showingReflection) { _, isShowing in
+            if !isShowing {
+                reflectionViewModel.loadReflections()
+            }
+        }
     }
     
     private var progress: Double {
@@ -117,7 +134,8 @@ struct TodaySummary: View {
             completedTasks: 5,
             totalTasks: 7,
             onTap: {},
-            viewModel: TaskListViewModel()
+            viewModel: TaskListViewModel(),
+            reflectionViewModel: ReflectionHistoryViewModel()
         )
         
         TodaySummary(
@@ -125,7 +143,8 @@ struct TodaySummary: View {
             completedTasks: 2,
             totalTasks: 7,
             onTap: {},
-            viewModel: TaskListViewModel()
+            viewModel: TaskListViewModel(),
+            reflectionViewModel: ReflectionHistoryViewModel()
         )
     }
     .padding()

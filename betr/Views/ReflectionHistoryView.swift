@@ -6,6 +6,7 @@ struct ReflectionHistoryView: View {
     @State private var selectedTimeFrame: TimeFrame = .week
     @State private var path = NavigationPath()
     @ObservedObject var taskViewModel: TaskListViewModel
+    @State private var showingReflection = false
     
     init(taskViewModel: TaskListViewModel) {
         self.taskViewModel = taskViewModel
@@ -40,11 +41,13 @@ struct ReflectionHistoryView: View {
                         completedTasks: taskViewModel.completedTasksCount(for: Date()),
                         totalTasks: taskViewModel.availableTasksCount(for: Date()),
                         onTap: { path.append(Date()) },
-                        viewModel: taskViewModel
+                        viewModel: taskViewModel,
+                        reflectionViewModel: viewModel
                     )
                     .onAppear {
-                        // Force refresh of task counts when view appears
+                        // Refresh both task counts and reflections when view appears
                         taskViewModel.objectWillChange.send()
+                        viewModel.loadReflections()
                     }
                     
                     // History
@@ -75,6 +78,16 @@ struct ReflectionHistoryView: View {
             }
             .navigationDestination(for: Date.self) { date in
                 TaskListView(viewModel: taskViewModel, selectedDate: date)
+            }
+            .sheet(isPresented: $showingReflection) {
+                BetterThanYesterdayView(viewModel: taskViewModel, selectedDate: Date())
+            }
+            .onChange(of: showingReflection) { _, isShowing in
+                if !isShowing {
+                    // Refresh reflections when the sheet is dismissed
+                    viewModel.loadReflections()
+                    taskViewModel.objectWillChange.send()
+                }
             }
         }
     }
