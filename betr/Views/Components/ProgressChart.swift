@@ -20,28 +20,28 @@ struct ProgressChart: View {
         let values = data.map { $0.value }
         let minValue = values.min() ?? 0
         let maxValue = values.max() ?? 0
-        // Add some padding to the range
         return (minValue - 1)...(maxValue + 1)
     }
     
     var body: some View {
-        Chart {
-            // Line connecting all points
-            ForEach(data, id: \.date) { item in
-                LineMark(
-                    x: .value("Date", dateFormatter.string(from: item.date)),
-                    y: .value("Progress", item.value)
-                )
-                .foregroundStyle(.gray)
-            }
+        Chart(data, id: \.date) { item in
+            // Main line
+            LineMark(
+                x: .value("Date", dateFormatter.string(from: item.date)),
+                y: .value("Progress", item.value)
+            )
+            .foregroundStyle(item.rating?.color ?? .gray.opacity(0.3))
+            .lineStyle(StrokeStyle(lineWidth: 3))
+            .interpolationMethod(.catmullRom)
             
-            // Dots only for days with reflections
-            ForEach(data.filter { $0.hasReflection }, id: \.date) { item in
+            // Dots for days with reflections
+            if item.hasReflection {
                 PointMark(
                     x: .value("Date", dateFormatter.string(from: item.date)),
                     y: .value("Progress", item.value)
                 )
-                .foregroundStyle(getPointColor(for: item.rating))
+                .foregroundStyle(item.rating?.color ?? .gray.opacity(0.3))
+                .symbolSize(50)
             }
         }
         .chartYScale(domain: yAxisRange)
@@ -57,14 +57,12 @@ struct ProgressChart: View {
         .frame(height: 200)
         .padding()
     }
-    
-    private func getPointColor(for rating: ReflectionRating?) -> Color {
-        guard let rating = rating else { return .clear }
-        switch rating {
-        case .better: return .green
-        case .same: return .orange
-        case .worse: return .red
-        }
+}
+
+// Helper extension to safely access array elements
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
