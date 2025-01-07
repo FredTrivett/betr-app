@@ -3,6 +3,7 @@ import SwiftUI
 struct TaskListView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: TaskListViewModel
+    @StateObject private var reflectionViewModel = ReflectionHistoryViewModel()
     let selectedDate: Date
     @State private var showingAddTask = false
     @State private var showManageRecurring = false
@@ -97,19 +98,25 @@ struct TaskListView: View {
                                         }
                                         .tint(.orange)
                                     }
+                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                        Button {
+                                            viewModel.moveTaskToNextDay(task, from: selectedDate)
+                                        } label: {
+                                            Label("Tomorrow", systemImage: "arrow.right")
+                                        }
+                                        .tint(.blue)
+                                    }
                                 }
                             } header: {
                                 HStack {
                                     Text("Recurring Tasks")
                                     Spacer()
                                     if hasIgnoredTasks {
-                                        Button {
+                                        Button("Show Ignored") {
                                             showingIgnoredTasks = true
-                                        } label: {
-                                            Text("Manage Ignored")
-                                                .font(.caption)
-                                                .foregroundStyle(.blue)
                                         }
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
                                     }
                                 }
                             }
@@ -141,7 +148,15 @@ struct TaskListView: View {
                                         } label: {
                                             Label("Edit", systemImage: "pencil")
                                         }
-                                        .tint(.orange)
+                                        .tint(.blue)
+                                    }
+                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                        Button {
+                                            viewModel.moveTaskToNextDay(task, from: selectedDate)
+                                        } label: {
+                                            Label("Tomorrow", systemImage: "arrow.right")
+                                        }
+                                        .tint(.blue)
                                     }
                                 }
                             }
@@ -173,15 +188,46 @@ struct TaskListView: View {
                 Button {
                     showingReflection = true
                 } label: {
-                    Text(isToday ? "Reflect on Today" : "Reflect on Yesterday")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    if let reflection = isToday ? reflectionViewModel.todayReflection : reflectionViewModel.getReflection(for: selectedDate) {
+                        VStack(alignment: .leading) {
+                            Text("Your Reflection")
+                                .font(.headline)
+                            HStack {
+                                Image(systemName: reflection.rating.icon)
+                                    .foregroundStyle(reflection.rating.color)
+                                Text("You did")
+                                    .foregroundStyle(.secondary)
+                                Text(reflection.rating.rawValue)
+                                    .foregroundStyle(reflection.rating.color)
+                                    .bold()
+                                Text(isToday ? "than yesterday" : "than the day before")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.bottom, 6)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                    } else {
+                        Text(isToday ? "Reflect on Today" : "Reflect on Yesterday")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(.blue)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 16)
+                .onChange(of: showingReflection) { _, isShowing in
+                    if !isShowing {
+                        // Reload reflections immediately
+                        DispatchQueue.main.async {
+                            reflectionViewModel.loadReflections()
+                        }
+                    }
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -194,7 +240,7 @@ struct TaskListView: View {
                         .font(.subheadline)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.gray.opacity(0.2))
+                        .background(Color.gray.opacity(0.1))
                         .clipShape(Capsule())
                 }
             }
@@ -216,10 +262,8 @@ struct TaskListView: View {
         }
         .sheet(item: $selectedTaskToEdit) { task in
             EditTaskView(
-                task: task,
-                isRecurring: false,
-                selectedDate: selectedDate,
-                viewModel: viewModel
+                viewModel: viewModel,
+                task: task
             )
         }
     }

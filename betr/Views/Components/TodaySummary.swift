@@ -5,68 +5,96 @@ struct TodaySummary: View {
     let completedTasks: Int
     let totalTasks: Int
     let onTap: () -> Void
-    @State private var showingReflection = false
     @ObservedObject var viewModel: TaskListViewModel
+    @ObservedObject var reflectionViewModel: ReflectionHistoryViewModel
+    
+    @State private var showingReflection = false
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
+            // Progress section - navigates to Today's Tasks
             Button(action: onTap) {
-                VStack(spacing: 20) {
-                    Text("Today")
-                        .font(.title2.bold())
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Today's Progress")
+                            .font(.headline)
+                        Text("\(completedTasks)/\(totalTasks) tasks completed")
+                            .foregroundStyle(.secondary)
+                    }
                     
-                    HStack(spacing: 30) {
-                        // Tasks Progress
-                        VStack(spacing: 8) {
-                            Text("\(completedTasks)/\(totalTasks)")
-                                .font(.system(size: 34, weight: .bold))
-                            Text("Tasks Completed")
-                                .font(.subheadline)
+                    Spacer()
+                    
+                    // Progress circle
+                    ZStack {
+                        Circle()
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                        
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                        
+                        Text("\(Int(progress * 100))%")
+                            .font(.caption2)
+                            .bold()
+                    }
+                    .frame(width: 44, height: 44)
+                }
+            }
+            
+            Divider()
+            
+            // Reflection section - opens BetterThanYesterdayView
+            Button(action: { showingReflection = true }) {
+                if let reflection = reflection {
+                    // Show existing reflection
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Today's Reflection")
+                                    .font(.headline)
+                                
+                                HStack(spacing: 8) {
+                                    Image(systemName: reflection.rating.icon)
+                                        .foregroundStyle(reflection.rating.color)
+                                    
+                                    Text("You did")
+                                        .foregroundStyle(.secondary)
+                                    Text(reflection.rating.rawValue)
+                                        .foregroundStyle(reflection.rating.color)
+                                        .bold()
+                                    Text("than yesterday")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.blue)
+                        }
+                        
+                        Text("Tap to update your reflection")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    // Show reflection prompt
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Daily Reflection")
+                                .font(.headline)
+                            Text("How did you do today?")
                                 .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity)
                         
-                        Divider()
-                            .frame(height: 50)
+                        Spacer()
                         
-                        // Day Rating
-                        VStack(spacing: 8) {
-                            if let reflection = reflection {
-                                Image(systemName: reflection.rating.iconName)
-                                    .font(.system(size: 34))
-                                    .foregroundStyle(reflection.rating.color)
-                                Text(reflection.rating.rawValue.capitalized)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Image(systemName: "questionmark.circle")
-                                    .font(.system(size: 34))
-                                    .foregroundStyle(.secondary)
-                                Text("Not Rated")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
+                        Image(systemName: "square.and.pencil.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
                     }
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            
-            // Add Reflect button if no reflection exists
-            if reflection == nil {
-                Button {
-                    showingReflection = true
-                } label: {
-                    Text("Reflect on My Day")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
         }
@@ -74,9 +102,20 @@ struct TodaySummary: View {
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .buttonStyle(.plain)
         .sheet(isPresented: $showingReflection) {
             BetterThanYesterdayView(viewModel: viewModel, selectedDate: Date())
         }
+        .onChange(of: showingReflection) { _, isShowing in
+            if !isShowing {
+                reflectionViewModel.loadReflections()
+            }
+        }
+    }
+    
+    private var progress: Double {
+        guard totalTasks > 0 else { return 0 }
+        return Double(completedTasks) / Double(totalTasks)
     }
 }
 
@@ -91,7 +130,8 @@ struct TodaySummary: View {
             completedTasks: 5,
             totalTasks: 7,
             onTap: {},
-            viewModel: TaskListViewModel()
+            viewModel: TaskListViewModel(),
+            reflectionViewModel: ReflectionHistoryViewModel()
         )
         
         TodaySummary(
@@ -99,7 +139,8 @@ struct TodaySummary: View {
             completedTasks: 2,
             totalTasks: 7,
             onTap: {},
-            viewModel: TaskListViewModel()
+            viewModel: TaskListViewModel(),
+            reflectionViewModel: ReflectionHistoryViewModel()
         )
     }
     .padding()

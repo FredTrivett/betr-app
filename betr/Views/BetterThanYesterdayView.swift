@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct BetterThanYesterdayView: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) var presentationMode
     @ObservedObject var viewModel: TaskListViewModel
     @StateObject private var reflectionViewModel = ReflectionHistoryViewModel()
     @State private var showingMessage = false
     @State private var selectedRating: ReflectionRating?
     @State private var showingFeedback = false
     @State private var shouldDismissToRoot = false
+    @State private var currentStats: (total: Int, completed: Int)?
     let selectedDate: Date
     
     private var canReflect: Bool {
@@ -33,6 +34,10 @@ struct BetterThanYesterdayView: View {
         } else {
             return dateFormatter.string(from: date)
         }
+    }
+    
+    private var existingReflection: DailyReflection? {
+        reflectionViewModel.getReflection(for: selectedDate)
     }
     
     var body: some View {
@@ -85,6 +90,38 @@ struct BetterThanYesterdayView: View {
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             
+                            // Only show previous reflection if not viewing yesterday
+                            if !Calendar.current.isDateInYesterday(selectedDate),
+                               let reflection = existingReflection {
+                                // Show previous reflection
+                                VStack(spacing: 8) {
+                                    Text("Your Previous Reflection")
+                                        .font(.headline)
+                                    
+                                    HStack(spacing: 16) {
+                                        Image(systemName: reflection.rating.icon)
+                                            .font(.title)
+                                            .foregroundStyle(reflection.rating.color)
+                                        
+                                        Text("You felt you did")
+                                            .foregroundStyle(.secondary)
+                                        Text(reflection.rating.rawValue)
+                                            .foregroundStyle(reflection.rating.color)
+                                            .bold()
+                                        Text("than yesterday")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Text("Tap below to update")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                            
                             Spacer(minLength: 100)
                         }
                     }
@@ -95,44 +132,35 @@ struct BetterThanYesterdayView: View {
                 if let comparison = comparison, canReflect {
                     VStack {
                         Spacer()
-                        VStack(spacing: 16) {
-                            Text("How do you feel about your progress?")
+                        VStack(spacing: 12) {
+                            Text(existingReflection != nil ? "Update your reflection" : "Did you do better than yesterday?")
                                 .font(.headline)
                             
-                            HStack {
-                                Spacer(minLength: 8)  // Reduced from 16 to 8
-                                
+                            HStack(spacing: 16) {
                                 RatingButton(
                                     rating: .better,
-                                    isSelected: selectedRating == .better,
+                                    isSelected: selectedRating == .better || existingReflection?.rating == .better,
                                     action: { submitReflection(.better, stats: comparison.currentStats) }
                                 )
                                 
-                                Spacer()
-                                
                                 RatingButton(
                                     rating: .same,
-                                    isSelected: selectedRating == .same,
+                                    isSelected: selectedRating == .same || existingReflection?.rating == .same,
                                     action: { submitReflection(.same, stats: comparison.currentStats) }
                                 )
                                 
-                                Spacer()
-                                
                                 RatingButton(
                                     rating: .worse,
-                                    isSelected: selectedRating == .worse,
+                                    isSelected: selectedRating == .worse || existingReflection?.rating == .worse,
                                     action: { submitReflection(.worse, stats: comparison.currentStats) }
                                 )
-                                
-                                Spacer(minLength: 8)  // Reduced from 16 to 8
                             }
                         }
-                        .padding(.horizontal, 8)  // Reduced from default to 8
-                        .padding(.vertical)
+                        .padding()
                         .frame(maxWidth: .infinity)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .padding(.horizontal, 8)  // Reduced outer padding too
+                        .padding(.horizontal)
                         .padding(.bottom)
                     }
                 } else if !canReflect {
@@ -153,28 +181,27 @@ struct BetterThanYesterdayView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") {
-                        dismiss()
+                        presentationMode.wrappedValue.dismiss()
                     }
                 }
             }
             .sheet(isPresented: $showingFeedback) {
-                if shouldDismissToRoot {
-                    dismiss()
-                }
-            } content: {
-                if let rating = selectedRating, let comparison = comparison {
+                if let rating = selectedRating, let stats = currentStats {
                     ReflectionFeedbackView(
                         rating: rating,
-                        stats: comparison.currentStats,
-                        shouldDismissToRoot: $shouldDismissToRoot
+                        stats: stats,
+                        dismiss: {
+                            presentationMode.wrappedValue.dismiss()
+                        }
                     )
                 }
             }
         }
     }
     
-    private func submitReflection(_ rating: ReflectionRating, stats: (completed: Int, total: Int)) {
+    private func submitReflection(_ rating: ReflectionRating, stats: (total: Int, completed: Int)) {
         selectedRating = rating
+        currentStats = stats
         reflectionViewModel.addReflection(rating, stats: stats, for: selectedDate)
         showingFeedback = true
     }
@@ -186,28 +213,31 @@ private struct RatingButton: View {
     let isSelected: Bool
     let action: () -> Void
     
-    private var icon: String {
-        switch rating {
-        case .better: return "arrow.up.circle.fill"
-        case .same: return "equal.circle.fill"
-        case .worse: return "arrow.down.circle.fill"
-        }
-    }
-    
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: icon)
+                Image(systemName: rating.icon)
                     .font(.title2)
                 Text(rating.rawValue.capitalized)
                     .font(.caption)
             }
-            .frame(maxWidth: .infinity)  // Make button take equal width
+            .frame(maxWidth: .infinity)
             .foregroundStyle(rating.color)
             .padding(.vertical, 8)
             .padding(.horizontal, 4)
             .background(rating.color.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
+
+// Only add the icon property since color is already defined
+extension ReflectionRating {
+    var icon: String {
+        switch self {
+        case .better: return "arrow.up.circle.fill"
+        case .same: return "equal.circle.fill"
+        case .worse: return "arrow.down.circle.fill"
         }
     }
 }

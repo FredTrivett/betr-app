@@ -89,25 +89,34 @@ class TaskListViewModel: ObservableObject {
         )
     }
     
-    func updateTask(_ task: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            var updatedTask = task
-            if task.isRecurring {
-                // For recurring tasks, set lastModifiedDate to today
-                updatedTask.lastModifiedDate = Calendar.current.startOfDay(for: Date())
+    func updateTask(_ updatedTask: Task, preserveHistoryBefore date: Date? = nil) {
+        if let preserveDate = date, updatedTask.isRecurring {
+            if let historicalTask = tasks.first(where: { $0.id == updatedTask.id }) {
+                let hybridTask = Task(
+                    id: updatedTask.id,
+                    title: updatedTask.title,
+                    description: updatedTask.description,
+                    isRecurring: true,
+                    completedDates: historicalTask.completedDates,
+                    excludedDates: historicalTask.excludedDates,
+                    creationDate: historicalTask.creationDate,
+                    lastModifiedDate: date,
+                    originalTaskId: historicalTask.originalTaskId,
+                    selectedDays: updatedTask.selectedDays,
+                    effectiveDate: preserveDate
+                )
                 
-                // Get the original task
-                let originalTask = tasks[index]
-                
-                // Preserve completion dates for past dates
-                let today = Calendar.current.startOfDay(for: Date())
-                updatedTask.completedDates = originalTask.completedDates.filter { date in
-                    Calendar.current.compare(date, to: today, toGranularity: .day) == .orderedAscending
+                if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
+                    tasks[index] = hybridTask
                 }
             }
-            tasks[index] = updatedTask
-            saveTasks()
+        } else {
+            if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
+                tasks[index] = updatedTask
+            }
         }
+        
+        saveTasks()
     }
     
     func completedTasksCount(for date: Date) -> Int {
@@ -173,6 +182,70 @@ class TaskListViewModel: ObservableObject {
         return tasks.filter { task in
             task.isRecurring && task.excludedDates.contains { Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
+    }
+    
+    var recurringTasks: [Task] {
+        tasks.filter { $0.isRecurring }
+    }
+    
+    func moveTaskToNextDay(_ task: Task, from currentDate: Date) {
+        let calendar = Calendar.current
+        let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: currentDate) ?? Date())
+        
+        if task.isRecurring {
+            // Recurring task handling (existing code)
+            let newTask = Task(
+                id: UUID(),
+                title: task.title,
+                description: task.description,
+                isRecurring: false,
+                completedDates: Set<Date>(),
+                excludedDates: Set<Date>(),
+                creationDate: tomorrow,
+                lastModifiedDate: Date(),
+                originalTaskId: task.id,
+                selectedDays: Set<Weekday>(),
+                effectiveDate: tomorrow
+            )
+            
+            // Exclude the recurring task from today
+            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                var updatedTask = tasks[index]
+                updatedTask.excludedDates.insert(calendar.startOfDay(for: currentDate))
+                tasks[index] = updatedTask
+            }
+            
+            tasks.append(newTask)
+            print("DEBUG: Created new task for \(tomorrow)")
+        } else {
+            // For non-recurring (one-time) tasks:
+            // 1. Create new task for tomorrow
+            let newTask = Task(
+                id: UUID(),
+                title: task.title,
+                description: task.description,
+                isRecurring: false,
+                completedDates: Set<Date>(),
+                excludedDates: Set<Date>(),
+                creationDate: tomorrow,
+                lastModifiedDate: Date(),
+                originalTaskId: nil,
+                selectedDays: Set<Weekday>(),
+                effectiveDate: tomorrow
+            )
+            
+            // 2. Remove the task from today
+            tasks.removeAll { $0.id == task.id }
+            
+            // 3. Add the new task for tomorrow
+            tasks.append(newTask)
+            
+            print("DEBUG: Recreated one-time task '\(task.title)' for tomorrow")
+        }
+        
+        // Save all changes at once
+        saveTasks()
+        objectWillChange.send()
     }
 }
 
