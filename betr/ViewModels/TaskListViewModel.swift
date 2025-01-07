@@ -193,7 +193,7 @@ class TaskListViewModel: ObservableObject {
         let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: currentDate) ?? Date())
         
         if task.isRecurring {
-            // 1. Create a new one-time task for tomorrow
+            // Recurring task handling (existing code)
             let newTask = Task(
                 id: UUID(),
                 title: task.title,
@@ -208,23 +208,39 @@ class TaskListViewModel: ObservableObject {
                 effectiveDate: tomorrow
             )
             
-            // 2. Exclude the recurring task from today
+            // Exclude the recurring task from today
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 var updatedTask = tasks[index]
                 updatedTask.excludedDates.insert(calendar.startOfDay(for: currentDate))
                 tasks[index] = updatedTask
             }
             
-            // 3. Add the new task after updating the recurring task
             tasks.append(newTask)
-            
             print("DEBUG: Created new task for \(tomorrow)")
         } else {
-            // Handle non-recurring tasks
-            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-                tasks[index].effectiveDate = tomorrow
-                tasks[index].lastModifiedDate = Date()
-            }
+            // For non-recurring (one-time) tasks:
+            // 1. Create new task for tomorrow
+            let newTask = Task(
+                id: UUID(),
+                title: task.title,
+                description: task.description,
+                isRecurring: false,
+                completedDates: Set<Date>(),
+                excludedDates: Set<Date>(),
+                creationDate: tomorrow,
+                lastModifiedDate: Date(),
+                originalTaskId: nil,
+                selectedDays: Set<Weekday>(),
+                effectiveDate: tomorrow
+            )
+            
+            // 2. Remove the task from today
+            tasks.removeAll { $0.id == task.id }
+            
+            // 3. Add the new task for tomorrow
+            tasks.append(newTask)
+            
+            print("DEBUG: Recreated one-time task '\(task.title)' for tomorrow")
         }
         
         // Save all changes at once
