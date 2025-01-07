@@ -11,15 +11,9 @@ struct TodaySummary: View {
     @State private var showingReflection = false
     
     var body: some View {
-        Button(action: {
-            if reflection != nil {
-                showingReflection = true
-            } else {
-                onTap()
-            }
-        }) {
-            VStack(spacing: 16) {
-                // Progress section
+        VStack(spacing: 16) {
+            // Progress section - navigates to Today's Tasks
+            Button(action: onTap) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Today's Progress")
@@ -46,10 +40,12 @@ struct TodaySummary: View {
                     }
                     .frame(width: 44, height: 44)
                 }
-                
-                Divider()
-                
-                // Reflection section
+            }
+            
+            Divider()
+            
+            // Reflection section - opens BetterThanYesterdayView
+            Button(action: { showingReflection = true }) {
                 if let reflection = reflection {
                     // Show existing reflection
                     VStack(alignment: .leading, spacing: 8) {
@@ -101,11 +97,11 @@ struct TodaySummary: View {
                     }
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .buttonStyle(.plain)
         .sheet(isPresented: $showingReflection) {
             BetterThanYesterdayView(viewModel: viewModel, selectedDate: Date())
