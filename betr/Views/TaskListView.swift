@@ -98,19 +98,25 @@ struct TaskListView: View {
                                         }
                                         .tint(.orange)
                                     }
+                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                        Button {
+                                            viewModel.moveTaskToNextDay(task, from: selectedDate)
+                                        } label: {
+                                            Label("Tomorrow", systemImage: "arrow.right")
+                                        }
+                                        .tint(.blue)
+                                    }
                                 }
                             } header: {
                                 HStack {
                                     Text("Recurring Tasks")
                                     Spacer()
                                     if hasIgnoredTasks {
-                                        Button {
+                                        Button("Show Ignored") {
                                             showingIgnoredTasks = true
-                                        } label: {
-                                            Text("Manage Ignored")
-                                                .font(.caption)
-                                                .foregroundStyle(.blue)
                                         }
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
                                     }
                                 }
                             }
@@ -141,6 +147,14 @@ struct TaskListView: View {
                                             selectedTaskToEdit = task
                                         } label: {
                                             Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(.blue)
+                                    }
+                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                        Button {
+                                            viewModel.moveTaskToNextDay(task, from: selectedDate)
+                                        } label: {
+                                            Label("Tomorrow", systemImage: "arrow.right")
                                         }
                                         .tint(.blue)
                                     }
