@@ -5,7 +5,7 @@ struct ReflectionHistoryView: View {
     @StateObject private var viewModel: ReflectionHistoryViewModel
     @State private var selectedTimeFrame: TimeFrame = .week
     @State private var path = NavigationPath()
-    let taskViewModel: TaskListViewModel
+    @ObservedObject var taskViewModel: TaskListViewModel
     
     init(taskViewModel: TaskListViewModel) {
         self.taskViewModel = taskViewModel
@@ -42,6 +42,10 @@ struct ReflectionHistoryView: View {
                         onTap: { path.append(Date()) },
                         viewModel: taskViewModel
                     )
+                    .onAppear {
+                        // Force refresh of task counts when view appears
+                        taskViewModel.objectWillChange.send()
+                    }
                     
                     // History
                     VStack(alignment: .leading, spacing: 8) {
