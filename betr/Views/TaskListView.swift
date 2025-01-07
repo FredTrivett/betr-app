@@ -192,7 +192,6 @@ struct TaskListView: View {
                         VStack(alignment: .leading) {
                             Text("Your Reflection")
                                 .font(.headline)
-                                .padding(.top, 24)
                             HStack {
                                 Image(systemName: reflection.rating.icon)
                                     .foregroundStyle(reflection.rating.color)
@@ -220,6 +219,7 @@ struct TaskListView: View {
                     }
                 }
                 .padding(.horizontal)
+                .padding(.top, 16)
                 .onChange(of: showingReflection) { _, isShowing in
                     if !isShowing {
                         // Reload reflections immediately
