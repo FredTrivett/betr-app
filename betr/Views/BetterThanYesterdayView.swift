@@ -90,7 +90,9 @@ struct BetterThanYesterdayView: View {
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             
-                            if let reflection = existingReflection {
+                            // Only show previous reflection if not viewing yesterday
+                            if !Calendar.current.isDateInYesterday(selectedDate),
+                               let reflection = existingReflection {
                                 // Show previous reflection
                                 VStack(spacing: 8) {
                                     Text("Your Previous Reflection")

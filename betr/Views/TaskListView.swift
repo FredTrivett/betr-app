@@ -187,7 +187,7 @@ struct TaskListView: View {
                                 Text(reflection.rating.rawValue)
                                     .foregroundStyle(reflection.rating.color)
                                     .bold()
-                                Text("than yesterday")
+                                Text(isToday ? "than yesterday" : "than the day before")
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.bottom, 6)
