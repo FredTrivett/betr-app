@@ -1,7 +1,7 @@
 import Foundation
 
 /// Represents a task that can be either one-time or recurring
-struct Task: Identifiable, Hashable, Codable {
+struct Task: Identifiable, Codable, Equatable {
     /// Unique identifier for the task
     var id: UUID
     
@@ -15,25 +15,25 @@ struct Task: Identifiable, Hashable, Codable {
     var isRecurring: Bool
     
     /// Dates when this task was completed
-    var completedDates: Set<Date>
+    var completedDates: [Date]
     
     /// Dates when this recurring task was excluded
-    var excludedDates: Set<Date>
+    var excludedDates: [Date]
     
     /// The date when this task was created
     var creationDate: Date
     
     /// The date when this task was last modified
-    var lastModifiedDate: Date?
+    var lastModifiedDate: Date
     
     /// Reference to the original task if this is a recurring instance
     var originalTaskId: UUID?
     
     /// The days this task repeats on (if it's recurring)
-    var selectedDays: Set<Weekday> = []
+    var selectedDays: [Weekday]
     
     /// The effective date for this task
-    var effectiveDate: Date?
+    var effectiveDate: Date
     
     /// Creates a new task
     /// - Parameters:
@@ -53,13 +53,13 @@ struct Task: Identifiable, Hashable, Codable {
         title: String,
         description: String = "",
         isRecurring: Bool = false,
-        completedDates: Set<Date> = [],
-        excludedDates: Set<Date> = [],
+        completedDates: [Date] = [],
+        excludedDates: [Date] = [],
         creationDate: Date = Date(),
-        lastModifiedDate: Date? = nil,
+        lastModifiedDate: Date = Date(),
         originalTaskId: UUID? = nil,
-        selectedDays: Set<Weekday> = [],
-        effectiveDate: Date? = nil
+        selectedDays: [Weekday] = [],
+        effectiveDate: Date = Date()
     ) {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             fatalError("Task title cannot be empty")
@@ -107,8 +107,7 @@ struct Task: Identifiable, Hashable, Codable {
             
             // If we have an effective date (task was modified) and this date is before it,
             // use the original configuration (before the change)
-            if let effectiveDate = effectiveDate,
-               calendar.compare(date, to: effectiveDate, toGranularity: .day) == .orderedAscending {
+            if calendar.compare(date, to: effectiveDate, toGranularity: .day) == .orderedAscending {
                 // For past dates, check if it was completed on this date
                 // If it was completed, it means it was available on this date in the past
                 return completedDates.contains { calendar.isDate($0, inSameDayAs: normalizedDate) }
@@ -129,7 +128,7 @@ struct Task: Identifiable, Hashable, Codable {
     mutating func updateCompletion(_ completed: Bool, for date: Date) {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         if completed {
-            completedDates.insert(normalizedDate)
+            completedDates.append(normalizedDate)
         } else {
             completedDates = completedDates.filter { !Calendar.current.isDate($0, inSameDayAs: normalizedDate) }
         }
@@ -144,6 +143,10 @@ struct Task: Identifiable, Hashable, Codable {
             return (0, 0)
         }
         return (1, isCompletedForDate(date) ? 1 : 0)
+    }
+    
+    static func == (lhs: Task, rhs: Task) -> Bool {
+        lhs.id == rhs.id
     }
 }
 

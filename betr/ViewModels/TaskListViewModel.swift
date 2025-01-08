@@ -2,27 +2,44 @@ import Foundation
 
 @MainActor
 class TaskListViewModel: ObservableObject {
-    private let storage: TaskStorageProtocol
+    private let cloudKitService: CloudServiceProtocol?
+    private let localStorage: TaskStorageProtocol
     @Published var tasks: [Task] = []
     
-    init(storage: TaskStorageProtocol = TaskStorage()) {
-        self.storage = storage
+    init(cloudKitService: CloudServiceProtocol? = CloudKitService(localStorage: TaskStorage()), localStorage: TaskStorageProtocol = TaskStorage()) {
+        self.cloudKitService = cloudKitService
+        self.localStorage = localStorage
         loadTasks()
     }
     
     private func loadTasks() {
-        do {
-            tasks = try storage.loadTasks()
-        } catch {
-            print("Failed to load tasks: \(error.localizedDescription)")
+        cloudKitService?.fetchTasks { [weak self] result in
+            switch result {
+            case .success(let fetchedTasks):
+                self?.tasks = fetchedTasks
+            case .failure(let error):
+                print("Failed to load tasks: \(error.localizedDescription)")
+            }
         }
     }
     
     private func saveTasks() {
-        do {
-            try storage.saveTasks(tasks)
-        } catch {
-            print("Failed to save tasks: \(error.localizedDescription)")
+        if let cloudKitService = cloudKitService {
+            for task in tasks {
+                cloudKitService.saveTask(task) { result in
+                    switch result {
+                    case .success:
+                        break
+                    case .failure(let error):
+                        print("Failed to save task: \(error.localizedDescription)")
+                        // Fallback to local storage on failure
+                        try? self.localStorage.saveTasks(self.tasks)
+                    }
+                }
+            }
+        } else {
+            // just use local storage for previews
+            try? localStorage.saveTasks(tasks)
         }
     }
     
@@ -32,7 +49,14 @@ class TaskListViewModel: ObservableObject {
             let currentlyCompleted = updatedTask.isCompletedForDate(date)
             updatedTask.updateCompletion(!currentlyCompleted, for: date)
             tasks[index] = updatedTask
-            saveTasks()
+            cloudKitService?.saveTask(updatedTask) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to save task: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -41,20 +65,34 @@ class TaskListViewModel: ObservableObject {
             tasks.removeAll { $0.originalTaskId == task.id && Calendar.current.isDate($0.creationDate, inSameDayAs: date) }
         } else {
             tasks.removeAll { $0.id == task.id }
+            cloudKitService?.deleteTask(task) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to delete task: \(error.localizedDescription)")
+                }
+            }
         }
         saveTasks()
     }
     
     func addTask(_ task: Task) {
-        if task.isRecurring {
-            var recurringTask = task
-            recurringTask.id = UUID()
-            recurringTask.originalTaskId = task.id
-            tasks.append(recurringTask)
-        } else {
-            tasks.append(task)
+        cloudKitService?.saveTask(task) { [weak self] result in
+            switch result {
+            case .success(let savedTask):
+                if task.isRecurring {
+                    var recurringTask = task
+                    recurringTask.id = UUID()
+                    recurringTask.originalTaskId = savedTask.id
+                    self?.tasks.append(recurringTask)
+                } else {
+                    self?.tasks.append(task)
+                }
+            case .failure(let error):
+                print("Failed to save task: \(error.localizedDescription)")
+            }
         }
-        saveTasks()
     }
     
     // Get completion statistics for a specific date
@@ -100,7 +138,7 @@ class TaskListViewModel: ObservableObject {
                     completedDates: historicalTask.completedDates,
                     excludedDates: historicalTask.excludedDates,
                     creationDate: historicalTask.creationDate,
-                    lastModifiedDate: date,
+                    lastModifiedDate: date ?? Date(),
                     originalTaskId: historicalTask.originalTaskId,
                     selectedDays: updatedTask.selectedDays,
                     effectiveDate: preserveDate
@@ -111,12 +149,17 @@ class TaskListViewModel: ObservableObject {
                 }
             }
         } else {
-            if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
-                tasks[index] = updatedTask
+            cloudKitService?.saveTask(updatedTask) { result in
+                switch result {
+                case .success(let savedTask):
+                    if let index = self.tasks.firstIndex(where: { $0.id == savedTask.id }) {
+                        self.tasks[index] = savedTask
+                    }
+                case .failure(let error):
+                    print("Failed to update task: \(error.localizedDescription)")
+                }
             }
         }
-        
-        saveTasks()
     }
     
     func completedTasksCount(for date: Date) -> Int {
@@ -135,9 +178,16 @@ class TaskListViewModel: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             var updatedTask = tasks[index]
             let normalizedDate = Calendar.current.startOfDay(for: date)
-            updatedTask.excludedDates.insert(normalizedDate)
+            updatedTask.excludedDates.append(normalizedDate)
             tasks[index] = updatedTask
-            saveTasks()
+            cloudKitService?.saveTask(updatedTask) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to exclude task: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -154,9 +204,16 @@ class TaskListViewModel: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             var updatedTask = tasks[index]
             let normalizedDate = Calendar.current.startOfDay(for: date)
-            updatedTask.excludedDates.insert(normalizedDate)
+            updatedTask.excludedDates.append(normalizedDate)
             tasks[index] = updatedTask
-            saveTasks()
+            cloudKitService?.saveTask(updatedTask) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to ignore task: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -164,9 +221,16 @@ class TaskListViewModel: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             var updatedTask = tasks[index]
             let normalizedDate = Calendar.current.startOfDay(for: date)
-            updatedTask.excludedDates.remove(normalizedDate)
+            updatedTask.excludedDates.removeAll(where: { Calendar.current.isDate($0, inSameDayAs: normalizedDate) })
             tasks[index] = updatedTask
-            saveTasks()
+            cloudKitService?.saveTask(updatedTask) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to unignore task: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -193,58 +257,84 @@ class TaskListViewModel: ObservableObject {
         let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: currentDate) ?? Date())
         
         if task.isRecurring {
-            // Recurring task handling (existing code)
+            // Recurring task handling
             let newTask = Task(
                 id: UUID(),
                 title: task.title,
                 description: task.description,
                 isRecurring: false,
-                completedDates: Set<Date>(),
-                excludedDates: Set<Date>(),
+                completedDates: [],
+                excludedDates: [],
                 creationDate: tomorrow,
                 lastModifiedDate: Date(),
                 originalTaskId: task.id,
-                selectedDays: Set<Weekday>(),
+                selectedDays: [],
                 effectiveDate: tomorrow
             )
             
             // Exclude the recurring task from today
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 var updatedTask = tasks[index]
-                updatedTask.excludedDates.insert(calendar.startOfDay(for: currentDate))
+                updatedTask.excludedDates.append(calendar.startOfDay(for: currentDate))
                 tasks[index] = updatedTask
+                cloudKitService?.saveTask(updatedTask) { result in
+                    switch result {
+                    case .success:
+                        break
+                    case .failure(let error):
+                        print("Failed to exclude recurring task: \(error.localizedDescription)")
+                    }
+                }
             }
             
             tasks.append(newTask)
-            print("DEBUG: Created new task for \(tomorrow)")
+            cloudKitService?.saveTask(newTask) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to save new recurring task: \(error.localizedDescription)")
+                }
+            }
         } else {
-            // For non-recurring (one-time) tasks:
-            // 1. Create new task for tomorrow
+            // For non-recurring (one-time) tasks
             let newTask = Task(
                 id: UUID(),
                 title: task.title,
                 description: task.description,
                 isRecurring: false,
-                completedDates: Set<Date>(),
-                excludedDates: Set<Date>(),
+                completedDates: [],
+                excludedDates: [],
                 creationDate: tomorrow,
                 lastModifiedDate: Date(),
                 originalTaskId: nil,
-                selectedDays: Set<Weekday>(),
+                selectedDays: [],
                 effectiveDate: tomorrow
             )
             
-            // 2. Remove the task from today
+            // Remove the task from today
             tasks.removeAll { $0.id == task.id }
+            cloudKitService?.deleteTask(task) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to delete old task: \(error.localizedDescription)")
+                }
+            }
             
-            // 3. Add the new task for tomorrow
+            // Add the new task for tomorrow
             tasks.append(newTask)
-            
-            print("DEBUG: Recreated one-time task '\(task.title)' for tomorrow")
+            cloudKitService?.saveTask(newTask) { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    print("Failed to save moved task: \(error.localizedDescription)")
+                }
+            }
         }
         
-        // Save all changes at once
-        saveTasks()
         objectWillChange.send()
     }
 }

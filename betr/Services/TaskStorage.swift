@@ -2,27 +2,16 @@ import Foundation
 
 /// Protocol defining task storage operations
 protocol TaskStorageProtocol {
-    /// Saves tasks to persistent storage
-    /// - Parameter tasks: Array of tasks to save
-    /// - Throws: TaskStorageError if save fails
     func saveTasks(_ tasks: [Task]) throws
-    
-    /// Loads tasks from persistent storage
-    /// - Returns: Array of stored tasks
-    /// - Throws: TaskStorageError if load fails
-    func loadTasks() throws -> [Task]
+    func fetchTasks() throws -> [Task]
+    func deleteTask(_ task: Task) throws
 }
 
 /// Service for persisting tasks using UserDefaults
 struct TaskStorage: TaskStorageProtocol {
-    /// UserDefaults instance for storing tasks
     private let defaults: UserDefaults
-    
-    /// Key for storing tasks in UserDefaults
     private let tasksKey = "com.FredericTRIVETT.betr.tasks"
     
-    /// Creates a new TaskStorage instance
-    /// - Parameter defaults: UserDefaults instance to use (defaults to standard)
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
@@ -37,7 +26,7 @@ struct TaskStorage: TaskStorageProtocol {
         }
     }
     
-    func loadTasks() throws -> [Task] {
+    func fetchTasks() throws -> [Task] {
         guard let data = defaults.data(forKey: tasksKey) else {
             return []
         }
@@ -49,19 +38,39 @@ struct TaskStorage: TaskStorageProtocol {
             throw TaskStorageError.loadError
         }
     }
+    
+    func deleteTask(_ task: Task) throws {
+        var tasks = try fetchTasks()
+        tasks.removeAll { $0.id == task.id }
+        try saveTasks(tasks)
+    }
 }
 
-/// Errors that can occur during task storage operations
+/// Mock implementation for previews and testing
+class MockTaskStorage: TaskStorageProtocol {
+    private var tasks: [Task] = []
+    
+    func saveTasks(_ tasks: [Task]) throws {
+        self.tasks.append(contentsOf: tasks)
+    }
+    
+    func fetchTasks() throws -> [Task] {
+        return tasks
+    }
+    
+    func deleteTask(_ task: Task) throws {
+        tasks.removeAll { $0.id == task.id }
+    }
+}
+
 enum TaskStorageError: LocalizedError {
     case saveError
     case loadError
     
     var errorDescription: String? {
         switch self {
-        case .saveError:
-            return "Failed to save tasks"
-        case .loadError:
-            return "Failed to load tasks"
+        case .saveError: return "Failed to save tasks"
+        case .loadError: return "Failed to load tasks"
         }
     }
 } 

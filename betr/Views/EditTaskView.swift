@@ -14,7 +14,7 @@ struct EditTaskView: View {
         self.task = task
         _title = State(initialValue: task.title)
         _description = State(initialValue: task.description)
-        _selectedDays = State(initialValue: task.selectedDays)
+        _selectedDays = State(initialValue: Set(task.selectedDays))
     }
     
     var body: some View {
@@ -77,7 +77,7 @@ struct EditTaskView: View {
             creationDate: task.creationDate,
             lastModifiedDate: currentDate,
             originalTaskId: task.originalTaskId,
-            selectedDays: selectedDays,
+            selectedDays: Array(selectedDays),
             effectiveDate: currentDate
         )
         

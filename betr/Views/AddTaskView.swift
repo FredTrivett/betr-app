@@ -74,7 +74,7 @@ struct AddTaskView: View {
                             isRecurring: isRecurring,
                             creationDate: selectedDate,
                             originalTaskId: nil,
-                            selectedDays: selectedDays
+                            selectedDays: Array(selectedDays)
                         )
                         viewModel.addTask(task)
                         dismiss()
