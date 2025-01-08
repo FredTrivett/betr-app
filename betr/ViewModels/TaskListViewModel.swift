@@ -78,19 +78,24 @@ class TaskListViewModel: ObservableObject {
     }
     
     func addTask(_ task: Task) {
+        print("\n🆕 Adding new task: '\(task.title)'")
         cloudKitService?.saveTask(task) { [weak self] result in
-            switch result {
-            case .success(let savedTask):
-                if task.isRecurring {
-                    var recurringTask = task
-                    recurringTask.id = UUID()
-                    recurringTask.originalTaskId = savedTask.id
-                    self?.tasks.append(recurringTask)
-                } else {
-                    self?.tasks.append(task)
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let savedTask):
+                    if task.isRecurring {
+                        var recurringTask = task
+                        recurringTask.id = UUID()
+                        recurringTask.originalTaskId = savedTask.id
+                        self?.tasks.append(recurringTask)
+                        print("✅ Added recurring task")
+                    } else {
+                        self?.tasks.append(task)
+                        print("✅ Added one-time task")
+                    }
+                case .failure(let error):
+                    print("❌ Failed to add task: \(error.localizedDescription)")
                 }
-            case .failure(let error):
-                print("Failed to save task: \(error.localizedDescription)")
             }
         }
     }

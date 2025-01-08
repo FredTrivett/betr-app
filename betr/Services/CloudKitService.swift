@@ -13,69 +13,126 @@ protocol CloudServiceProtocol {
 class CloudKitService: CloudServiceProtocol {
     private let privateDB: CKDatabase
     private let localStorage: TaskStorageProtocol
+    private let container: CKContainer
     
     init(localStorage: TaskStorageProtocol = TaskStorage()) {
         self.localStorage = localStorage
-        let container = CKContainer(identifier: "iCloud.com.FredericTRIVETT.growvy")
+        self.container = CKContainer(identifier: "iCloud.com.FredericTRIVETT.growvy")
         self.privateDB = container.privateCloudDatabase
+        
+        // Check iCloud status
+        container.accountStatus { [weak self] status, error in
+            if let error = error {
+                print("❌ iCloud Error: \(error.localizedDescription)")
+                return
+            }
+            
+            switch status {
+            case .available:
+                print("✅ iCloud is available")
+            case .noAccount:
+                print("❌ No iCloud account")
+            case .restricted:
+                print("❌ iCloud restricted")
+            case .couldNotDetermine:
+                print("❌ Could not determine iCloud status")
+            case .temporarilyUnavailable:
+                print("⚠️ iCloud temporarily unavailable")
+            @unknown default:
+                print("❓ Unknown iCloud status")
+            }
+        }
     }
     
     // MARK: - Task Methods
     
     func saveTask(_ task: Task, completion: @escaping (Result<Task, Error>) -> Void) {
-        let record = CKRecord(task: task)
+        print("\n=== CLOUDKIT OPERATION ===")
+        print("📱 Attempting to save task: '\(task.title)'")
         
-        privateDB.save(record) { [weak self] savedRecord, error in
+        // First check iCloud status
+        container.accountStatus { [weak self] status, error in
+            guard let self = self else { return }
+            
             if let error = error {
-                // Fallback to local storage on CloudKit error
-                do {
-                    try self?.localStorage.saveTasks([task])
-                    completion(.success(task))
-                } catch {
-                    completion(.failure(error))
-                }
-            } else if let savedRecord = savedRecord,
-                      let task = Task(record: savedRecord) {
-                completion(.success(task))
+                print("❌ iCloud Error: \(error.localizedDescription)")
+                self.fallbackToLocalStorage(task, completion: completion)
+                return
             }
+            
+            guard status == .available else {
+                print("❌ iCloud not available: \(status)")
+                self.fallbackToLocalStorage(task, completion: completion)
+                return
+            }
+            
+            let record = CKRecord(task: task)
+            self.privateDB.save(record) { savedRecord, error in
+                if let error = error {
+                    print("❌ CloudKit Error: \(error.localizedDescription)")
+                    self.fallbackToLocalStorage(task, completion: completion)
+                } else if let savedRecord = savedRecord,
+                          let task = Task(record: savedRecord) {
+                    print("✅ Successfully saved to CloudKit!")
+                    print("======================\n")
+                    completion(.success(task))
+                }
+            }
+        }
+    }
+    
+    private func fallbackToLocalStorage(_ task: Task, completion: @escaping (Result<Task, Error>) -> Void) {
+        do {
+            try self.localStorage.saveTasks([task])
+            print("📝 Fallback: Saved to local storage")
+            print("======================\n")
+            completion(.success(task))
+        } catch {
+            print("💥 Error: Failed to save to local storage")
+            print("======================\n")
+            completion(.failure(error))
         }
     }
     
     func fetchTasks(completion: @escaping (Result<[Task], Error>) -> Void) {
+        print("\n=== CLOUDKIT OPERATION ===")
+        print("🔍 Fetching all tasks...")
         let query = CKQuery(recordType: "Task", predicate: NSPredicate(value: true))
         
-        let operation = CKQueryOperation(query: query)
-        var fetchedRecords: [CKRecord] = []
-        
-        operation.recordMatchedBlock = { _, result in
-            switch result {
-            case .success(let record):
-                fetchedRecords.append(record)
-            case .failure(let error):
-                print("Error fetching record: \(error)")
-            }
-        }
-        
-        operation.queryResultBlock = { result in
-            switch result {
-            case .success:
-                let tasks = fetchedRecords.compactMap { Task(record: $0) }
-                completion(.success(tasks))
-            case .failure(let error):
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("❌ Fetch failed: \(error.localizedDescription)")
+                print("======================\n")
                 completion(.failure(error))
+                return
+            }
+            
+            if let records = records {
+                let tasks = records.compactMap { Task(record: $0) }
+                print("✅ Successfully fetched \(tasks.count) tasks")
+                print("======================\n")
+                completion(.success(tasks))
+            } else {
+                print("ℹ️ No tasks found")
+                print("======================\n")
+                completion(.success([]))
             }
         }
-        
-        privateDB.add(operation)
     }
     
     func deleteTask(_ task: Task, completion: @escaping (Result<Void, Error>) -> Void) {
+        print("\n=== CLOUDKIT OPERATION ===")
+        print("🗑️ Deleting task: '\(task.title)'")
         let recordID = CKRecord.ID(recordName: task.id.uuidString)
         
         privateDB.delete(withRecordID: recordID) { deletedRecordID, error in
             if let error = error {
+                print("❌ Delete failed: \(error.localizedDescription)")
+                print("======================\n")
                 completion(.failure(error))
             } else {
+                print("✅ Successfully deleted task")
+                print("======================\n")
                 completion(.success(()))
             }
         }
@@ -142,17 +199,34 @@ class CloudKitService: CloudServiceProtocol {
 extension CKRecord {
     convenience init(task: Task) {
         self.init(recordType: "Task")
-        self["id"] = task.id.uuidString as CKRecordValue
-        self["title"] = task.title as CKRecordValue
-        self["description"] = task.description as CKRecordValue
+        self["taskID"] = task.id.uuidString as CKRecordValue
+        self["taskTitle"] = task.title as CKRecordValue
+        self["taskDescription"] = task.description as CKRecordValue
         self["isRecurring"] = task.isRecurring as CKRecordValue
-        self["completedDates"] = task.completedDates.map { $0.timeIntervalSince1970 } as CKRecordValue
-        self["excludedDates"] = task.excludedDates.map { $0.timeIntervalSince1970 } as CKRecordValue
-        self["creationDate"] = task.creationDate.timeIntervalSince1970 as CKRecordValue
-        self["lastModifiedDate"] = task.lastModifiedDate.timeIntervalSince1970 as CKRecordValue
-        self["originalTaskId"] = task.originalTaskId?.uuidString as? CKRecordValue
-        self["selectedDays"] = task.selectedDays.map { $0.rawValue } as CKRecordValue
-        self["effectiveDate"] = task.effectiveDate.timeIntervalSince1970 as CKRecordValue
+        
+        // Handle empty arrays
+        if task.completedDates.isEmpty {
+            self["completedDates"] = [] as NSArray
+        } else {
+            self["completedDates"] = task.completedDates.map { $0.timeIntervalSince1970 } as CKRecordValue
+        }
+        
+        if task.excludedDates.isEmpty {
+            self["excludedDates"] = [] as NSArray
+        } else {
+            self["excludedDates"] = task.excludedDates.map { $0.timeIntervalSince1970 } as CKRecordValue
+        }
+        
+        if task.selectedDays.isEmpty {
+            self["selectedDays"] = [] as NSArray
+        } else {
+            self["selectedDays"] = task.selectedDays.map { $0.rawValue } as CKRecordValue
+        }
+        
+        self["taskCreatedAt"] = task.creationDate.timeIntervalSince1970 as CKRecordValue
+        self["taskModifiedAt"] = task.lastModifiedDate.timeIntervalSince1970 as CKRecordValue
+        self["originalTaskID"] = task.originalTaskId?.uuidString as? CKRecordValue
+        self["effectiveAt"] = task.effectiveDate.timeIntervalSince1970 as CKRecordValue
     }
     
     convenience init(reflection: DailyReflection) {
@@ -167,20 +241,20 @@ extension CKRecord {
 
 extension Task {
     init?(record: CKRecord) {
-        guard let id = record["id"] as? String,
-              let title = record["title"] as? String,
-              let description = record["description"] as? String,
+        guard let id = record["taskID"] as? String,
+              let title = record["taskTitle"] as? String,
+              let description = record["taskDescription"] as? String,
               let isRecurring = record["isRecurring"] as? Bool,
               let completedDates = record["completedDates"] as? [TimeInterval],
               let excludedDates = record["excludedDates"] as? [TimeInterval],
-              let creationDate = record["creationDate"] as? TimeInterval,
-              let lastModifiedDate = record["lastModifiedDate"] as? TimeInterval,
+              let creationDate = record["taskCreatedAt"] as? TimeInterval,
+              let lastModifiedDate = record["taskModifiedAt"] as? TimeInterval,
               let selectedDays = record["selectedDays"] as? [Int],
-              let effectiveDate = record["effectiveDate"] as? TimeInterval else {
+              let effectiveDate = record["effectiveAt"] as? TimeInterval else {
             return nil
         }
         
-        let originalTaskId = record["originalTaskId"] as? String
+        let originalTaskId = record["originalTaskID"] as? String
         
         self.init(
             id: UUID(uuidString: id)!,
