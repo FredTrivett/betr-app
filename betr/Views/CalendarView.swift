@@ -161,10 +161,14 @@ extension UIApplication {
 }
 
 #Preview {
-    let mockStorage = MockTaskStorage()
-    let mockCloudService = MockCloudService()
-    let viewModel = TaskListViewModel(cloudKitService: mockCloudService, localStorage: mockStorage)
-    NavigationView {
+    let viewModel: TaskListViewModel
+   #if DEBUG
+        viewModel = TaskListViewModel(cloudKitService: MockCloudService(), localStorage: MockTaskStorage())
+    #else
+        viewModel = TaskListViewModel()
+    #endif
+    
+    return NavigationView {
         CalendarView(taskViewModel: viewModel)
     }
 } 
