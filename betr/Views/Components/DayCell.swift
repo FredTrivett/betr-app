@@ -2,8 +2,17 @@ import SwiftUI
 
 struct DayCell: View {
     let date: Date
-    let isSelected: Bool
-    let isToday: Bool
+    @Binding var selectedDate: Date?
+    let taskViewModel: TaskListViewModel
+    
+    private var isSelected: Bool {
+        selectedDate.map { Calendar.current.isDate(date, inSameDayAs: $0) } ?? false
+    }
+    
+    private var isToday: Bool {
+        Calendar.current.isDateInToday(date)
+    }
+    
     let completionStatus: DayCompletionStatus
     let isFutureDate: Bool
     let reflectionRating: ReflectionRating?
@@ -69,8 +78,8 @@ struct DayCell: View {
 #Preview {
     DayCell(
         date: Date(),
-        isSelected: true,
-        isToday: true,
+        selectedDate: .constant(nil),
+        taskViewModel: TaskListViewModel(),
         completionStatus: .full,
         isFutureDate: false,
         reflectionRating: nil

@@ -26,25 +26,26 @@ struct MonthView: View {
             }
             
             LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(Array(daysInMonth().enumerated()), id: \.1) { _, date in
+                ForEach(Array(daysInMonth().enumerated()), id: \.offset) { index, date in
                     if let date = date {
                         let isFutureDate = calendar.compare(date, to: Date(), toGranularity: .day) == .orderedDescending
-                        
                         DayCell(
                             date: date,
-                            isSelected: selectedDate.map { calendar.isDate(date, inSameDayAs: $0) } ?? false,
-                            isToday: calendar.isDateInToday(date),
+                            selectedDate: $selectedDate,
+                            taskViewModel: taskViewModel,
                             completionStatus: getCompletionStatus(for: date),
                             isFutureDate: isFutureDate,
                             reflectionRating: getTodayReflection(for: date)?.rating
                         )
-                        .id(calendar.isDateInToday(date) ? 0 : nil)
+                        .id("day_\(date.timeIntervalSince1970)")
                         .onTapGesture {
                             selectedDate = nil  // Reset first to ensure trigger
                             selectedDate = date
+                            showingTaskList = true
                         }
                     } else {
                         Color.clear
+                            .id("empty_\(index)")
                     }
                 }
             }

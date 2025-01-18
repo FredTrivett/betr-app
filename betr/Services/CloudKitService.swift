@@ -50,32 +50,49 @@ class CloudKitService: CloudServiceProtocol {
         print("\n=== CLOUDKIT OPERATION ===")
         print("📱 Attempting to save task: '\(task.title)'")
         
-        // First check iCloud status
-        container.accountStatus { [weak self] status, error in
+        let recordID = CKRecord.ID(recordName: task.id.uuidString)
+        
+        // First try to fetch existing record
+        privateDB.fetch(withRecordID: recordID) { [weak self] existingRecord, error in
             guard let self = self else { return }
             
-            if let error = error {
-                print("❌ iCloud Error: \(error.localizedDescription)")
-                self.fallbackToLocalStorage(task, completion: completion)
-                return
+            let record: CKRecord
+            if let existingRecord = existingRecord {
+                // Update existing record
+                record = existingRecord
+            } else {
+                // Create new record
+                record = CKRecord(recordType: "Task", recordID: recordID)
             }
             
-            guard status == .available else {
-                print("❌ iCloud not available: \(status)")
-                self.fallbackToLocalStorage(task, completion: completion)
-                return
+            // Update record fields
+            record["taskID"] = task.id.uuidString as CKRecordValue
+            record["taskTitle"] = task.title as CKRecordValue
+            record["taskDescription"] = task.description as CKRecordValue
+            record["isRecurring"] = task.isRecurring as CKRecordValue
+            record["completedDates"] = task.completedDates.map { $0.timeIntervalSince1970 } as CKRecordValue
+            record["excludedDates"] = task.excludedDates.map { $0.timeIntervalSince1970 } as CKRecordValue
+            record["taskCreatedAt"] = task.creationDate.timeIntervalSince1970 as CKRecordValue
+            record["taskModifiedAt"] = task.lastModifiedDate.timeIntervalSince1970 as CKRecordValue
+            record["selectedDays"] = task.selectedDays.map { $0.rawValue } as CKRecordValue
+            record["effectiveAt"] = task.effectiveDate.timeIntervalSince1970 as CKRecordValue
+            
+            if let originalTaskId = task.originalTaskId {
+                record["originalTaskID"] = originalTaskId.uuidString as CKRecordValue
             }
             
-            let record = CKRecord(task: task)
+            // Save the record
             self.privateDB.save(record) { savedRecord, error in
-                if let error = error {
-                    print("❌ CloudKit Error: \(error.localizedDescription)")
-                    self.fallbackToLocalStorage(task, completion: completion)
-                } else if let savedRecord = savedRecord,
-                          let task = Task(record: savedRecord) {
-                    print("✅ Successfully saved to CloudKit!")
-                    print("======================\n")
-                    completion(.success(task))
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("❌ CloudKit Error: \(error.localizedDescription)")
+                        print("======================\n")
+                        completion(.failure(error))
+                    } else if let savedRecord = savedRecord {
+                        print("✅ Successfully saved to CloudKit!")
+                        print("======================\n")
+                        completion(.success(task))
+                    }
                 }
             }
         }
@@ -97,27 +114,49 @@ class CloudKitService: CloudServiceProtocol {
     func fetchTasks(completion: @escaping (Result<[Task], Error>) -> Void) {
         print("\n=== CLOUDKIT OPERATION ===")
         print("🔍 Fetching all tasks...")
-        let query = CKQuery(recordType: "Task", predicate: NSPredicate(value: true))
         
-        privateDB.perform(query, inZoneWith: nil) { records, error in
-            if let error = error {
-                print("❌ Fetch failed: \(error.localizedDescription)")
-                print("======================\n")
-                completion(.failure(error))
-                return
-            }
-            
-            if let records = records {
-                let tasks = records.compactMap { Task(record: $0) }
-                print("✅ Successfully fetched \(tasks.count) tasks")
-                print("======================\n")
-                completion(.success(tasks))
-            } else {
-                print("ℹ️ No tasks found")
-                print("======================\n")
-                completion(.success([]))
+        let query = CKQuery(recordType: "Task", predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: "taskModifiedAt", ascending: false)]
+        
+        let operation = CKQueryOperation(query: query)
+        operation.desiredKeys = ["taskID", "taskTitle", "taskDescription", "isRecurring", 
+                               "completedDates", "excludedDates", "taskCreatedAt", 
+                               "taskModifiedAt", "selectedDays", "effectiveAt", "originalTaskID"]
+        
+        var fetchedRecords: [CKRecord] = []
+        var fetchErrors: [Error] = []
+        
+        operation.recordMatchedBlock = { _, result in
+            switch result {
+            case .success(let record):
+                fetchedRecords.append(record)
+                print("📝 Found task: '\(record["taskTitle"] ?? "Unknown")'")
+            case .failure(let error):
+                fetchErrors.append(error)
+                print("❌ Error fetching record: \(error)")
             }
         }
+        
+        operation.queryResultBlock = { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    if !fetchErrors.isEmpty {
+                        print("⚠️ Some records failed to fetch: \(fetchErrors.count) errors")
+                    }
+                    let tasks = fetchedRecords.compactMap { Task(record: $0) }
+                    print("✅ Successfully fetched \(tasks.count) tasks")
+                    print("======================\n")
+                    completion(.success(tasks))
+                case .failure(let error):
+                    print("❌ Fetch failed: \(error.localizedDescription)")
+                    print("======================\n")
+                    completion(.failure(error))
+                }
+            }
+        }
+        
+        privateDB.add(operation)
     }
     
     func deleteTask(_ task: Task, completion: @escaping (Result<Void, Error>) -> Void) {
@@ -141,20 +180,37 @@ class CloudKitService: CloudServiceProtocol {
     // MARK: - Reflection Methods
     
     func saveReflection(_ reflection: DailyReflection, completion: @escaping (Result<DailyReflection, Error>) -> Void) {
-        let record = CKRecord(reflection: reflection)
+        print("\n=== CLOUDKIT OPERATION ===")
+        print("📝 Saving reflection for \(reflection.date.formatted(date: .abbreviated, time: .omitted))")
+        
+        let record = CKRecord(recordType: "DailyReflection", recordID: CKRecord.ID(recordName: reflection.id.uuidString))
+        record["id"] = reflection.id.uuidString as CKRecordValue
+        record["date"] = reflection.date.timeIntervalSince1970 as CKRecordValue
+        record["rating"] = reflection.rating.rawValue as CKRecordValue
+        record["tasksCompleted"] = reflection.tasksCompleted as CKRecordValue
+        record["totalTasks"] = reflection.totalTasks as CKRecordValue
         
         privateDB.save(record) { savedRecord, error in
-            if let error = error {
-                completion(.failure(error))
-            } else if let savedRecord = savedRecord,
-                      let reflection = DailyReflection(record: savedRecord) {
-                completion(.success(reflection))
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ CloudKit Error: \(error.localizedDescription)")
+                    print("======================\n")
+                    completion(.failure(error))
+                } else if let savedRecord = savedRecord {
+                    print("✅ Successfully saved reflection!")
+                    print("======================\n")
+                    completion(.success(reflection))
+                }
             }
         }
     }
     
     func fetchReflections(completion: @escaping (Result<[DailyReflection], Error>) -> Void) {
+        print("\n=== CLOUDKIT OPERATION ===")
+        print("🔍 Fetching all reflections...")
+        
         let query = CKQuery(recordType: "DailyReflection", predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
         
         let operation = CKQueryOperation(query: query)
         var fetchedRecords: [CKRecord] = []
@@ -169,12 +225,36 @@ class CloudKitService: CloudServiceProtocol {
         }
         
         operation.queryResultBlock = { result in
-            switch result {
-            case .success:
-                let reflections = fetchedRecords.compactMap { DailyReflection(record: $0) }
-                completion(.success(reflections))
-            case .failure(let error):
-                completion(.failure(error))
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    let reflections = fetchedRecords.compactMap { record -> DailyReflection? in
+                        guard let id = record["id"] as? String,
+                              let date = record["date"] as? TimeInterval,
+                              let ratingString = record["rating"] as? String,
+                              let rating = ReflectionRating(rawValue: ratingString),
+                              let tasksCompleted = record["tasksCompleted"] as? Int,
+                              let totalTasks = record["totalTasks"] as? Int else {
+                            return nil
+                        }
+                        
+                        return DailyReflection(
+                            id: UUID(uuidString: id) ?? UUID(),
+                            date: Date(timeIntervalSince1970: date),
+                            rating: rating,
+                            tasksCompleted: tasksCompleted,
+                            totalTasks: totalTasks
+                        )
+                    }
+                    
+                    print("✅ Successfully fetched \(reflections.count) reflections")
+                    print("======================\n")
+                    completion(.success(reflections))
+                case .failure(let error):
+                    print("❌ Fetch failed: \(error.localizedDescription)")
+                    print("======================\n")
+                    completion(.failure(error))
+                }
             }
         }
         
@@ -182,12 +262,19 @@ class CloudKitService: CloudServiceProtocol {
     }
     
     func deleteReflection(_ reflection: DailyReflection, completion: @escaping (Result<Void, Error>) -> Void) {
+        print("\n=== CLOUDKIT OPERATION ===")
+        print("🗑️ Deleting reflection from \(reflection.date.formatted(date: .abbreviated, time: .omitted))")
+        
         let recordID = CKRecord.ID(recordName: reflection.id.uuidString)
         
-        privateDB.delete(withRecordID: recordID) { deletedRecordID, error in
+        privateDB.delete(withRecordID: recordID) { _, error in
             if let error = error {
+                print("❌ Delete failed: \(error.localizedDescription)")
+                print("======================\n")
                 completion(.failure(error))
             } else {
+                print("✅ Successfully deleted reflection")
+                print("======================\n")
                 completion(.success(()))
             }
         }
@@ -284,7 +371,7 @@ extension DailyReflection {
         }
         
         self.init(
-            id: UUID(uuidString: id)!,
+            id: UUID(uuidString: id) ?? UUID(),
             date: Date(timeIntervalSince1970: date),
             rating: rating,
             tasksCompleted: tasksCompleted,
@@ -318,4 +405,8 @@ class MockCloudService: CloudServiceProtocol {
     func deleteReflection(_ reflection: DailyReflection, completion: @escaping (Result<Void, Error>) -> Void) {
         completion(.success(()))
     }
+}
+
+enum CloudKitError: Error {
+    case notAvailable
 } 

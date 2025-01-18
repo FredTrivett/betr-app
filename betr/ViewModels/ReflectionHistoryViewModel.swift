@@ -2,15 +2,15 @@ import Foundation
 
 @MainActor
 class ReflectionHistoryViewModel: ObservableObject {
-    @Published private(set) var reflections: [DailyReflection] = []
+    @Published var reflections: [DailyReflection] = []
     @Published private(set) var displayedReflections: [DailyReflection] = []
     @Published private(set) var todayReflection: DailyReflection?
-    private let storage: ReflectionHistoryStorageProtocol
+    private let cloudKitService: CloudServiceProtocol
     private var currentPage = 0
     private let pageSize = 7
     
-    init(storage: ReflectionHistoryStorageProtocol = ReflectionHistoryStorage()) {
-        self.storage = storage
+    init(cloudKitService: CloudServiceProtocol = CloudKitService()) {
+        self.cloudKitService = cloudKitService
         loadReflections()
     }
     
@@ -20,25 +20,28 @@ class ReflectionHistoryViewModel: ObservableObject {
         }
     }
     
-    // Make this public so it can be called from the view
     func loadReflections() {
-        do {
-            reflections = try storage.loadReflections()
-            reflections.sort { $0.date > $1.date }
-            
-            // Set today's reflection
-            let today = Calendar.current.startOfDay(for: Date())
-            todayReflection = reflections.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
-            
-            // Remove today's reflection from the main list
-            reflections = reflections.filter { !Calendar.current.isDate($0.date, inSameDayAs: today) }
-            
-            // Reset and reload displayed reflections
-            displayedReflections = []
-            currentPage = 0
-            loadMoreReflections()
-        } catch {
-            print("Failed to load reflections: \(error)")
+        cloudKitService.fetchReflections { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let reflections):
+                    self?.reflections = reflections.sorted { $0.date > $1.date }
+                    
+                    // Set today's reflection
+                    let today = Calendar.current.startOfDay(for: Date())
+                    self?.todayReflection = reflections.first { 
+                        Calendar.current.isDate($0.date, inSameDayAs: today)
+                    }
+                    
+                    // Reset and reload displayed reflections
+                    self?.displayedReflections = []
+                    self?.currentPage = 0
+                    self?.loadMoreReflections()
+                    
+                case .failure(let error):
+                    print("Failed to load reflections: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -50,12 +53,19 @@ class ReflectionHistoryViewModel: ObservableObject {
             totalTasks: stats.total
         )
         
-        do {
-            try storage.saveReflection(reflection)
-            loadReflections()
-            objectWillChange.send()
-        } catch {
-            print("Failed to save reflection: \(error)")
+        saveReflection(reflection)
+    }
+    
+    private func saveReflection(_ reflection: DailyReflection) {
+        cloudKitService.saveReflection(reflection) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self?.loadReflections()
+                case .failure(let error):
+                    print("Failed to save reflection: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -79,7 +89,7 @@ class ReflectionHistoryViewModel: ObservableObject {
     func getChartData(for timeFrame: TimeFrame) -> [(date: Date, value: Int, hasReflection: Bool, rating: ReflectionRating?)] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let endDate = today // Include today
+        let endDate = today
         let startDate: Date
         
         switch timeFrame {
@@ -125,23 +135,6 @@ class ReflectionHistoryViewModel: ObservableObject {
         }
         
         return result
-    }
-    
-    func getRecentReflections(for timeFrame: TimeFrame) -> [DailyReflection] {
-        let calendar = Calendar.current
-        let endDate = Date()
-        let startDate: Date
-        
-        switch timeFrame {
-        case .week:
-            startDate = calendar.date(byAdding: .day, value: -6, to: endDate)!
-        case .month:
-            startDate = calendar.date(byAdding: .day, value: -29, to: endDate)!
-        }
-        
-        return reflections
-            .filter { $0.date >= startDate && $0.date <= endDate }
-            .sorted { $0.date > $1.date }
     }
     
     func loadMoreReflections() {
